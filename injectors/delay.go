@@ -6,26 +6,86 @@ import (
 	"math/rand"
 	"sync"
 	"time"
+
+	"github.com/rom8726/chaoskit"
 )
 
-// DelayInjector introduces random delays
+// DelayMode defines how delays are injected
+type DelayMode int
+
+const (
+	// ProbabilityMode uses random probability to determine if delay should be applied
+	ProbabilityMode DelayMode = iota
+	// IntervalMode uses a background goroutine to periodically inject delays that block MaybeDelay() calls
+	IntervalMode
+)
+
+// DelayInjector introduces random delays during execution
 type DelayInjector struct {
-	name     string
-	minDelay time.Duration
-	maxDelay time.Duration
-	mu       sync.Mutex
-	stopCh   chan struct{}
-	stopped  bool
+	name        string
+	minDelay    time.Duration
+	maxDelay    time.Duration
+	interval    time.Duration
+	probability float64 // for ProbabilityMode
+	mode        DelayMode
+
+	// For IntervalMode synchronization
+	delayCond   *sync.Cond    // condition variable for signaling delays
+	activeDelay time.Duration // current delay to apply (protected by delayMu)
+	delayMu     sync.Mutex    // mutex for delay state
+	mu          sync.Mutex
+	stopCh      chan struct{}
+	stopped     bool
+	delayCount  int64
 }
 
-// RandomDelay creates a delay injector with random delays
+// RandomDelay creates a delay injector with probability-based delays (default mode)
+// Each call to MaybeDelay() has a chance to apply a delay based on probability
 func RandomDelay(min, max time.Duration) *DelayInjector {
 	return &DelayInjector{
-		name:     fmt.Sprintf("delay_injector_%v_%v", min, max),
+		name:        fmt.Sprintf("delay_injector_prob_%v_%v", min, max),
+		minDelay:    min,
+		maxDelay:    max,
+		probability: 1.0, // 100% chance by default
+		mode:        ProbabilityMode,
+		stopCh:      make(chan struct{}),
+	}
+}
+
+// RandomDelayWithProbability creates a delay injector with probability-based delays
+// probability: 0.0 to 1.0, determines the chance of applying delay on each MaybeDelay() call
+func RandomDelayWithProbability(min, max time.Duration, probability float64) *DelayInjector {
+	if probability < 0 {
+		probability = 0
+	}
+	if probability > 1 {
+		probability = 1
+	}
+
+	return &DelayInjector{
+		name:        fmt.Sprintf("delay_injector_prob_%v_%v_%.2f", min, max, probability),
+		minDelay:    min,
+		maxDelay:    max,
+		probability: probability,
+		mode:        ProbabilityMode,
+		stopCh:      make(chan struct{}),
+	}
+}
+
+// RandomDelayWithInterval creates a delay injector with interval-based delays
+// The background goroutine periodically injects delays that block MaybeDelay() calls
+func RandomDelayWithInterval(min, max, interval time.Duration) *DelayInjector {
+	di := &DelayInjector{
+		name:     fmt.Sprintf("delay_injector_interval_%v_%v_%v", min, max, interval),
 		minDelay: min,
 		maxDelay: max,
+		interval: interval,
+		mode:     IntervalMode,
 		stopCh:   make(chan struct{}),
 	}
+	di.delayCond = sync.NewCond(&di.delayMu)
+
+	return di
 }
 
 func (d *DelayInjector) Name() string {
@@ -40,9 +100,73 @@ func (d *DelayInjector) Inject(ctx context.Context) error {
 		return fmt.Errorf("injector already stopped")
 	}
 
-	fmt.Printf("[CHAOS] Delay injector started (range: %v-%v)\n", d.minDelay, d.maxDelay)
+	if d.mode == IntervalMode {
+		fmt.Printf("[CHAOS] Delay injector started (mode: interval, range: %v-%v, interval: %v)\n",
+			d.minDelay, d.maxDelay, d.interval)
+		// Start a background goroutine that periodically injects delays
+		go d.delayLoop(ctx)
+	} else {
+		fmt.Printf("[CHAOS] Delay injector started (mode: probability, range: %v-%v, probability: %.2f)\n",
+			d.minDelay, d.maxDelay, d.probability)
+	}
 
 	return nil
+}
+
+func (d *DelayInjector) delayLoop(ctx context.Context) {
+	ticker := time.NewTicker(d.interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-d.stopCh:
+			return
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			// Calculate delay and activate it
+			// This will make all MaybeDelay() calls block and apply this delay
+			delay := d.calculateDelay()
+			if delay > 0 {
+				fmt.Printf("[CHAOS] Interval-based delay triggered: %v (blocking MaybeDelay() calls)\n", delay)
+
+				// Set active delay and broadcast to all waiting goroutines
+				d.delayMu.Lock()
+				d.activeDelay = delay
+				d.delayCond.Broadcast() // Wake up all waiting MaybeDelay() calls
+				d.delayMu.Unlock()
+
+				// Wait for a delay window to close (give time for user code to apply it)
+				time.Sleep(delay + 200*time.Millisecond)
+
+				// Reset active delay if not consumed
+				d.delayMu.Lock()
+				if d.activeDelay > 0 {
+					d.activeDelay = 0
+					fmt.Printf("[CHAOS] Interval delay window closed (delay not consumed)\n")
+				}
+				d.delayMu.Unlock()
+			}
+		}
+	}
+}
+
+func (d *DelayInjector) calculateDelay() time.Duration {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	if d.stopped {
+		return 0
+	}
+
+	if d.maxDelay <= d.minDelay {
+		return d.minDelay
+	}
+
+	delta := d.maxDelay - d.minDelay
+	delay := d.minDelay + time.Duration(rand.Int63n(int64(delta)))
+
+	return delay
 }
 
 func (d *DelayInjector) Stop(ctx context.Context) error {
@@ -52,19 +176,187 @@ func (d *DelayInjector) Stop(ctx context.Context) error {
 	if !d.stopped {
 		close(d.stopCh)
 		d.stopped = true
+		fmt.Printf("[CHAOS] Delay injector stopped (total delays injected: %d)\n", d.delayCount)
 	}
 
 	return nil
 }
 
-// InjectDelay returns a random delay within the configured range
-func (d *DelayInjector) InjectDelay() time.Duration {
+// GetDelayCount returns the number of delays injected
+func (d *DelayInjector) GetDelayCount() int64 {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	return d.delayCount
+}
+
+// BeforeStep injects a delay before step execution
+func (d *DelayInjector) BeforeStep(ctx context.Context) error {
 	if d.stopped {
-		return 0
+		return nil
 	}
 
-	delta := d.maxDelay - d.minDelay
-	delay := d.minDelay + time.Duration(rand.Int63n(int64(delta)))
+	delay := d.calculateDelay()
+	if delay > 0 {
+		d.mu.Lock()
+		d.delayCount++
+		count := d.delayCount
+		d.mu.Unlock()
 
-	return delay
+		fmt.Printf("[CHAOS] Injecting delay before step #%d: %v\n", count, delay)
+		time.Sleep(delay)
+	}
+
+	return nil
+}
+
+// AfterStep is called after step execution (no-op for delay injector)
+func (d *DelayInjector) AfterStep(ctx context.Context, err error) error {
+	return nil
+}
+
+// GetChaosDelay returns a delay for chaos context
+// In ProbabilityMode: returns delay based on random probability
+// In IntervalMode: blocks until background goroutine signals a delay should be applied
+func (d *DelayInjector) GetChaosDelay() (time.Duration, bool) {
+	d.mu.Lock()
+	stopped := d.stopped
+	mode := d.mode
+	probability := d.probability
+	d.mu.Unlock()
+
+	if stopped {
+		return 0, false
+	}
+
+	if mode == IntervalMode {
+		// Wait for delay signal from background goroutine
+		d.delayMu.Lock()
+
+		// Check if delay is already active
+		if d.activeDelay > 0 {
+			delay := d.activeDelay
+			d.activeDelay = 0 // Consume delay
+			d.delayMu.Unlock()
+
+			// Increment counter when delay is actually applied
+			d.mu.Lock()
+			d.delayCount++
+			d.mu.Unlock()
+
+			fmt.Printf("[CHAOS] Interval delay applied in user code: %v\n", delay)
+
+			return delay, true
+		}
+
+		// Wait for a delay to be triggered with timeout
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		defer cancel()
+		delayReceived := make(chan time.Duration, 1)
+
+		// Goroutine to wait for delay
+		go func() {
+			d.delayMu.Lock()
+			defer d.delayMu.Unlock()
+
+			// Handle timeout
+			go func() {
+				<-ctx.Done()
+				d.delayCond.Signal() // Wake up to check timeout
+			}()
+
+			for d.activeDelay == 0 {
+				// Check if context timed out
+				if ctx.Err() != nil {
+					delayReceived <- 0
+
+					return
+				}
+
+				// Wait for broadcast from delayLoop
+				d.delayCond.Wait()
+
+				if d.activeDelay > 0 {
+					delay := d.activeDelay
+					d.activeDelay = 0 // Consume delay
+
+					// Increment counter when delay is actually applied
+					d.mu.Lock()
+					d.delayCount++
+					d.mu.Unlock()
+
+					delayReceived <- delay
+
+					return
+				}
+			}
+		}()
+
+		d.delayMu.Unlock()
+
+		// Wait for result
+		select {
+		case delay := <-delayReceived:
+			if delay > 0 {
+				fmt.Printf("[CHAOS] Interval delay applied in user code: %v\n", delay)
+
+				return delay, true
+			}
+
+			return 0, false
+		case <-ctx.Done():
+			return 0, false
+		}
+	}
+
+	// ProbabilityMode: use random generator
+	if rand.Float64() < probability {
+		delay := d.calculateDelay()
+		if delay > 0 {
+			d.mu.Lock()
+			d.delayCount++
+			d.mu.Unlock()
+
+			return delay, true
+		}
+	}
+
+	return 0, false
+}
+
+// Type implements CategorizedInjector
+func (d *DelayInjector) Type() chaoskit.InjectorType {
+	if d.mode == IntervalMode {
+		return chaoskit.InjectorTypeHybrid // Can work both globally and contextually
+	}
+
+	return chaoskit.InjectorTypeContext
+}
+
+// GetMetrics implements MetricsProvider
+func (d *DelayInjector) GetMetrics() map[string]interface{} {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	return map[string]interface{}{
+		"mode":        d.mode.String(),
+		"min_delay":   d.minDelay.String(),
+		"max_delay":   d.maxDelay.String(),
+		"probability": d.probability,
+		"interval":    d.interval.String(),
+		"delay_count": d.delayCount,
+		"stopped":     d.stopped,
+	}
+}
+
+// String returns string representation of DelayMode
+func (m DelayMode) String() string {
+	switch m {
+	case ProbabilityMode:
+		return "probability"
+	case IntervalMode:
+		return "interval"
+	default:
+		return "unknown"
+	}
 }

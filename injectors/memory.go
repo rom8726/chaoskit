@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"sync"
+
+	"github.com/rom8726/chaoskit"
 )
 
 // MemoryPressureInjector allocates memory to create pressure
@@ -64,4 +66,26 @@ func (m *MemoryPressureInjector) Stop(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// Type implements CategorizedInjector
+func (m *MemoryPressureInjector) Type() chaoskit.InjectorType {
+	return chaoskit.InjectorTypeGlobal
+}
+
+// IsGlobal implements GlobalInjector
+func (m *MemoryPressureInjector) IsGlobal() bool {
+	return true
+}
+
+// GetMetrics implements MetricsProvider
+func (m *MemoryPressureInjector) GetMetrics() map[string]interface{} {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return map[string]interface{}{
+		"size_mb":  m.sizeMB,
+		"stopped":  m.stopped,
+		"released": m.allocated == nil,
+	}
 }

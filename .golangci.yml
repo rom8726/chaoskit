@@ -1,0 +1,44 @@
+version: "2"
+
+run:
+  timeout: 5m
+  concurrency: 3
+  go: "1.25"
+  tests: false
+  issues-exit-code: 1
+  modules-download-mode: readonly
+
+output:
+  formats:
+    text: {}
+
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - goimports
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - alias
+        - localmodule
+issues:
+  fix: true
+  exclude-dirs-use-default: false
+
+linters:
+  enable:
+    - govet
+    - staticcheck
+    - ineffassign
+    - errcheck
+    - gocritic
+    - lll
+    - nlreturn
+
+linters-settings:
+  lll:
+    line-length: 120
+    tab-width: 1

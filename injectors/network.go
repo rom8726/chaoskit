@@ -12,7 +12,6 @@ import (
 // ToxiProxyClient wraps the ToxiProxy client for easier usage
 type ToxiProxyClient struct {
 	client *toxiproxy.Client
-	mu     sync.Mutex
 }
 
 // NewToxiProxyClient creates a new ToxiProxy client
@@ -222,6 +221,7 @@ func (t *ToxiProxyTimeoutInjector) Inject(ctx context.Context) error {
 	}
 
 	fmt.Printf("[TOXIPROXY] Timeout injected on %s: %dms\n", t.proxyName, t.timeout)
+
 	return nil
 }
 
@@ -239,6 +239,7 @@ func (t *ToxiProxyTimeoutInjector) Stop(ctx context.Context) error {
 
 	t.stopped = true
 	fmt.Printf("[TOXIPROXY] Timeout removed from %s\n", t.proxyName)
+
 	return nil
 }
 
@@ -366,6 +367,7 @@ func (m *ToxiProxyManager) CreateProxy(cfg ProxyConfig) error {
 
 	m.proxies[cfg.Name] = proxy
 	fmt.Printf("[TOXIPROXY] Proxy created: %s (%s -> %s)\n", cfg.Name, cfg.Listen, cfg.Upstream)
+
 	return nil
 }
 
@@ -385,6 +387,7 @@ func (m *ToxiProxyManager) DeleteProxy(name string) error {
 
 	delete(m.proxies, name)
 	fmt.Printf("[TOXIPROXY] Proxy deleted: %s\n", name)
+
 	return nil
 }
 

@@ -47,6 +47,7 @@ func (g *GoroutineLeakValidator) Validate(ctx context.Context, target chaoskit.T
 	if !g.initialized {
 		g.baselineGCount = current
 		g.initialized = true
+
 		return nil
 	}
 

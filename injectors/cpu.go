@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"sync"
+
+	"github.com/rom8726/chaoskit"
 )
 
 // CPUStressInjector creates CPU load
@@ -74,4 +76,25 @@ func (c *CPUStressInjector) Stop(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// Type implements CategorizedInjector
+func (c *CPUStressInjector) Type() chaoskit.InjectorType {
+	return chaoskit.InjectorTypeGlobal
+}
+
+// IsGlobal implements GlobalInjector
+func (c *CPUStressInjector) IsGlobal() bool {
+	return true
+}
+
+// GetMetrics implements MetricsProvider
+func (c *CPUStressInjector) GetMetrics() map[string]interface{} {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	return map[string]interface{}{
+		"workers": c.workers,
+		"stopped": c.stopped,
+	}
 }

@@ -10,11 +10,10 @@ import (
 )
 
 type InfiniteLoopValidator struct {
-	name           string
-	timeout        time.Duration
-	lastCheckTime  time.Time
-	lastCheckValue any
-	mu             sync.Mutex
+	name          string
+	timeout       time.Duration
+	lastCheckTime time.Time
+	mu            sync.Mutex
 }
 
 // NoInfiniteLoop creates an infinite loop validator

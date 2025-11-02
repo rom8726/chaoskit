@@ -21,6 +21,7 @@ type ContextualNetworkInjector struct {
 	hostPatterns map[string]NetworkRule // host patterns with specific rules
 	mu           sync.RWMutex
 	stopped      bool
+	rng          *rand.Rand // Deterministic random generator from context
 }
 
 // NetworkRule defines chaos rules for specific hosts/ports
@@ -114,6 +115,9 @@ func (c *ContextualNetworkInjector) Inject(ctx context.Context) error {
 		return fmt.Errorf("injector already stopped")
 	}
 
+	// Store deterministic random generator from context
+	c.rng = chaoskit.GetRand(ctx)
+
 	fmt.Printf("[CHAOS] Contextual network injector started (apply rate: %.2f)\n", c.applyRate)
 
 	return nil
@@ -140,15 +144,21 @@ func (c *ContextualNetworkInjector) ShouldApplyNetworkChaos(host string, port in
 		return false
 	}
 
+	// Use stored generator
+	rng := c.rng
+	if rng == nil {
+		rng = rand.New(rand.NewSource(rand.Int63()))
+	}
+
 	// Check apply rate
-	if rand.Float64() >= c.applyRate {
+	if rng.Float64() >= c.applyRate {
 		return false
 	}
 
 	// Check if host matches any pattern
 	for pattern, rule := range c.hostPatterns {
 		if matchesHost(pattern, host) {
-			return rand.Float64() < rule.ApplyRate
+			return rng.Float64() < rule.ApplyRate
 		}
 	}
 
@@ -170,7 +180,13 @@ func (c *ContextualNetworkInjector) GetNetworkLatency(host string, port int) (ti
 			latency := rule.Latency
 			if rule.Jitter > 0 {
 				jitterMs := int(rule.Jitter.Milliseconds())
-				latency += time.Duration(rand.Intn(jitterMs*2)-jitterMs) * time.Millisecond
+				c.mu.RLock()
+				rng := c.rng
+				c.mu.RUnlock()
+				if rng == nil {
+					rng = rand.New(rand.NewSource(rand.Int63()))
+				}
+				latency += time.Duration(rng.Intn(jitterMs*2)-jitterMs) * time.Millisecond
 			}
 
 			return latency, true
@@ -192,9 +208,14 @@ func (c *ContextualNetworkInjector) ShouldDropConnection(host string, port int) 
 	}
 
 	// Check host patterns
+	rng := c.rng
+	if rng == nil {
+		rng = rand.New(rand.NewSource(rand.Int63()))
+	}
+
 	for pattern, rule := range c.hostPatterns {
 		if matchesHost(pattern, host) {
-			return rand.Float64() < rule.DropProbability
+			return rng.Float64() < rule.DropProbability
 		}
 	}
 

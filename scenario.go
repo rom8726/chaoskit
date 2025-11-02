@@ -15,6 +15,7 @@ type Scenario struct {
 	validators []Validator
 	repeat     int
 	duration   time.Duration
+	seed       *int64 // Optional seed for deterministic randomness (nil = random)
 }
 
 // Scope groups injectors logically (e.g., "db", "api", "cache")
@@ -81,6 +82,13 @@ func (b *ScenarioBuilder) Repeat(n int) *ScenarioBuilder {
 // RunFor sets the duration to run the scenario
 func (b *ScenarioBuilder) RunFor(duration time.Duration) *ScenarioBuilder {
 	b.scenario.duration = duration
+
+	return b
+}
+
+// WithSeed sets the random seed for deterministic experiments
+func (b *ScenarioBuilder) WithSeed(seed int64) *ScenarioBuilder {
+	b.scenario.seed = &seed
 
 	return b
 }

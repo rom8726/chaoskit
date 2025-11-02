@@ -126,10 +126,14 @@ func (m *MonkeyPatchDelayInjector) Inject(ctx context.Context) error {
 		maxDelay := target.MaxDelay
 		delayBefore := target.DelayBefore
 		originalCopy := handle.Original
+		rng := chaoskit.GetRand(ctx) // Get deterministic generator from context
+		if rng == nil {
+			rng = rand.New(rand.NewSource(rand.Int63()))
+		}
 
 		if err := ApplyPatch(&handle, func(args []reflect.Value) []reflect.Value {
-			if rand.Float64() < probability {
-				delay := m.calculateDelay(minDelay, maxDelay)
+			if rng.Float64() < probability {
+				delay := m.calculateDelay(minDelay, maxDelay, rng)
 
 				fmt.Printf("[CHAOS] Monkey patch delay triggered: %s (delay: %v, probability: %.2f)\n",
 					funcName, delay, probability)
@@ -200,13 +204,13 @@ func (m *MonkeyPatchDelayInjector) Stop(ctx context.Context) error {
 }
 
 // calculateDelay calculates a random delay between min and max
-func (m *MonkeyPatchDelayInjector) calculateDelay(min, max time.Duration) time.Duration {
+func (m *MonkeyPatchDelayInjector) calculateDelay(min, max time.Duration, rng *rand.Rand) time.Duration {
 	if max <= min {
 		return min
 	}
 
 	delta := max - min
-	delay := min + time.Duration(rand.Int63n(int64(delta)))
+	delay := min + time.Duration(rng.Int63n(int64(delta)))
 
 	return delay
 }

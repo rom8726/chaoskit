@@ -19,6 +19,7 @@ type ContextCancellationInjector struct {
 	stopped       bool
 	cancelCount   int64
 	cancellations map[context.Context]context.CancelFunc // track active cancellations
+	rng           *rand.Rand                             // Deterministic random generator from context
 }
 
 // NewContextCancellationInjector creates a new context cancellation injector
@@ -50,6 +51,9 @@ func (c *ContextCancellationInjector) Inject(ctx context.Context) error {
 	if c.stopped {
 		return fmt.Errorf("injector already stopped")
 	}
+
+	// Store deterministic random generator from context
+	c.rng = chaoskit.GetRand(ctx)
 
 	fmt.Printf("[CHAOS] Context cancellation injector started (probability: %.2f)\n", c.probability)
 
@@ -99,7 +103,14 @@ func (c *ContextCancellationInjector) GetChaosContext(parent context.Context) (c
 	c.mu.Unlock()
 
 	// Check probability for immediate cancellation
-	if rand.Float64() < probability {
+	c.mu.Lock()
+	rng := c.rng
+	c.mu.Unlock()
+	if rng == nil {
+		rng = rand.New(rand.NewSource(rand.Int63()))
+	}
+
+	if rng.Float64() < probability {
 		c.mu.Lock()
 		c.cancelCount++
 		c.mu.Unlock()

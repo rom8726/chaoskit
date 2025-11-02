@@ -37,6 +37,7 @@ type DelayInjector struct {
 	stopCh      chan struct{}
 	stopped     bool
 	delayCount  int64
+	rng         *rand.Rand // Deterministic random generator from context
 }
 
 // RandomDelay creates a delay injector with probability-based delays (default mode)
@@ -99,6 +100,9 @@ func (d *DelayInjector) Inject(ctx context.Context) error {
 	if d.stopped {
 		return fmt.Errorf("injector already stopped")
 	}
+
+	// Store deterministic random generator from context
+	d.rng = chaoskit.GetRand(ctx)
 
 	if d.mode == IntervalMode {
 		fmt.Printf("[CHAOS] Delay injector started (mode: interval, range: %v-%v, interval: %v)\n",
@@ -164,7 +168,11 @@ func (d *DelayInjector) calculateDelay() time.Duration {
 	}
 
 	delta := d.maxDelay - d.minDelay
-	delay := d.minDelay + time.Duration(rand.Int63n(int64(delta)))
+	rng := d.rng
+	if rng == nil {
+		rng = rand.New(rand.NewSource(rand.Int63()))
+	}
+	delay := d.minDelay + time.Duration(rng.Int63n(int64(delta)))
 
 	return delay
 }
@@ -310,7 +318,14 @@ func (d *DelayInjector) GetChaosDelay() (time.Duration, bool) {
 	}
 
 	// ProbabilityMode: use random generator
-	if rand.Float64() < probability {
+	d.mu.Lock()
+	rng := d.rng
+	d.mu.Unlock()
+	if rng == nil {
+		rng = rand.New(rand.NewSource(rand.Int63()))
+	}
+
+	if rng.Float64() < probability {
 		delay := d.calculateDelay()
 		if delay > 0 {
 			d.mu.Lock()

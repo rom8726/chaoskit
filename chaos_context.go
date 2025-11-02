@@ -6,6 +6,9 @@ import (
 	"sync"
 )
 
+// randKey is a private type for context key
+type randKey struct{}
+
 // chaosKey is a private type for context key
 type chaosKey struct{}
 
@@ -123,6 +126,24 @@ func (c *ChaosContext) GetProvider(name string) (ChaosProvider, bool) {
 	return provider, ok
 }
 
+// AttachRand attaches a deterministic random number generator to context
+func AttachRand(ctx context.Context, rng *rand.Rand) context.Context {
+	return context.WithValue(ctx, randKey{}, rng)
+}
+
+// GetRand retrieves the random number generator from context, or creates a new one if not found
+// If seed was set in scenario, the generator will be deterministic
+func GetRand(ctx context.Context) *rand.Rand {
+	if v := ctx.Value(randKey{}); v != nil {
+		if rng, ok := v.(*rand.Rand); ok {
+			return rng
+		}
+	}
+
+	// Fallback to global random if no generator in context
+	return rand.New(rand.NewSource(rand.Int63()))
+}
+
 // ShouldFail returns true with given probability
 // User code can use this to simulate failures
 func ShouldFail(ctx context.Context, probability float64) bool {
@@ -131,7 +152,9 @@ func ShouldFail(ctx context.Context, probability float64) bool {
 		return false
 	}
 
-	return rand.Float64() < probability
+	rng := GetRand(ctx)
+
+	return rng.Float64() < probability
 }
 
 // MaybeCancelContext creates a child context with possible cancellation

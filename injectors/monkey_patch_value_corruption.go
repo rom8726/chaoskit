@@ -148,20 +148,25 @@ func (m *MonkeyPatchValueCorruptionInjector) Inject(ctx context.Context) error {
 		var count int64
 		m.corruptionCounts[target.Func] = &count
 
-		// Store corruption function value
-		corruptCopy := reflect.ValueOf(target.CorruptFunc)
-
 		// Apply patch with corruption logic
 		funcName := GetFuncName(target.Func, target.FuncName)
 		probability := target.Probability
 		originalCopy := handle.Original
+
+		// Store corruption function value
+		corruptCopy := reflect.ValueOf(target.CorruptFunc)
+
+		rng := chaoskit.GetRand(ctx) // Get deterministic generator from context
+		if rng == nil {
+			rng = rand.New(rand.NewSource(rand.Int63()))
+		}
 
 		if err := ApplyPatch(&handle, func(args []reflect.Value) []reflect.Value {
 			// Call original function first
 			originalResults := originalCopy.Call(args)
 
 			// Check probability
-			if rand.Float64() < probability {
+			if rng.Float64() < probability {
 				// Corrupt return values
 				m.mu.Lock()
 				*m.corruptionCounts[target.Func]++

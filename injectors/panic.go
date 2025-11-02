@@ -17,6 +17,7 @@ type PanicInjector struct {
 	mu          sync.Mutex
 	stopCh      chan struct{}
 	stopped     bool
+	rng         *rand.Rand // Deterministic random generator from context
 }
 
 // PanicProbability creates a new panic injector
@@ -40,6 +41,9 @@ func (p *PanicInjector) Inject(ctx context.Context) error {
 		return fmt.Errorf("injector already stopped")
 	}
 
+	// Store deterministic random generator from context
+	p.rng = chaoskit.GetRand(ctx)
+
 	// Start background panic injection
 	go func() {
 		ticker := time.NewTicker(100 * time.Millisecond)
@@ -50,9 +54,13 @@ func (p *PanicInjector) Inject(ctx context.Context) error {
 			case <-p.stopCh:
 				return
 			case <-ticker.C:
-				if rand.Float64() < p.probability {
+				p.mu.Lock()
+				rng := p.rng
+				prob := p.probability
+				p.mu.Unlock()
+				if rng.Float64() < prob {
 					// TODO: use gofail
-					fmt.Printf("[CHAOS] Panic injected (probability: %.2f)\n", p.probability)
+					fmt.Printf("[CHAOS] Panic injected (probability: %.2f)\n", prob)
 				}
 			}
 		}
@@ -82,7 +90,16 @@ func (p *PanicInjector) BeforeStep(ctx context.Context) error {
 		return nil
 	}
 
-	if rand.Float64() < p.probability {
+	// Use deterministic generator from context if available, otherwise use stored one
+	rng := chaoskit.GetRand(ctx)
+	if rng == nil {
+		rng = p.rng
+	}
+	if rng == nil {
+		rng = rand.New(rand.NewSource(rand.Int63()))
+	}
+
+	if rng.Float64() < p.probability {
 		fmt.Printf("[CHAOS] Injecting panic (probability: %.2f)\n", p.probability)
 		panic("chaos: injected panic")
 	}
@@ -104,7 +121,13 @@ func (p *PanicInjector) ShouldChaosPanic() bool {
 		return false
 	}
 
-	return rand.Float64() < p.probability
+	// Use stored generator (should be set during Inject)
+	rng := p.rng
+	if rng == nil {
+		rng = rand.New(rand.NewSource(rand.Int63()))
+	}
+
+	return rng.Float64() < p.probability
 }
 
 // GetPanicProbability returns the configured panic probability

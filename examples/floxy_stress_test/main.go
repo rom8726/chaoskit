@@ -14,17 +14,16 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/rom8726/floxy"
-	"github.com/rom8726/floxy/plugins/engine/metrics"
-
 	"github.com/rom8726/chaoskit"
 	"github.com/rom8726/chaoskit/injectors"
 	"github.com/rom8726/chaoskit/validators"
+	"github.com/rom8726/floxy"
+	"github.com/rom8726/floxy/plugins/engine/metrics"
 
 	rolldepth "github.com/rom8726/floxy/plugins/engine/rollback-depth"
 )
 
-//failpoint.Inject("payment-handler-panic", func() { panic("gofail: payment handler panic") })
+// failpoint.Inject("payment-handler-panic", func() { panic("gofail: payment handler panic") })
 
 // FloxyStressTarget wraps Floxy engine as a ChaosKit target
 type FloxyStressTarget struct {
@@ -389,13 +388,17 @@ var processPaymentHandler = func(ctx context.Context, order map[string]any) erro
 type PaymentHandler struct{ target *FloxyStressTarget }
 
 func (h *PaymentHandler) Name() string { return "payment" }
-func (h *PaymentHandler) Execute(ctx context.Context, stepCtx floxy.StepContext, input json.RawMessage) (json.RawMessage, error) {
+func (h *PaymentHandler) Execute(
+	ctx context.Context,
+	stepCtx floxy.StepContext,
+	input json.RawMessage,
+) (json.RawMessage, error) {
 	var order map[string]any
 	if err := json.Unmarshal(input, &order); err != nil {
 		return nil, err
 	}
 
-	// Call processable function (can be monkey patched)
+	// Call a processable function (can be monkey patched)
 	if err := processPaymentHandler(ctx, order); err != nil {
 		return nil, err
 	}
@@ -425,7 +428,11 @@ var processInventoryHandler = func(ctx context.Context, order map[string]any) er
 type InventoryHandler struct{ target *FloxyStressTarget }
 
 func (h *InventoryHandler) Name() string { return "inventory" }
-func (h *InventoryHandler) Execute(ctx context.Context, stepCtx floxy.StepContext, input json.RawMessage) (json.RawMessage, error) {
+func (h *InventoryHandler) Execute(
+	ctx context.Context,
+	stepCtx floxy.StepContext,
+	input json.RawMessage,
+) (json.RawMessage, error) {
 	var order map[string]any
 	if err := json.Unmarshal(input, &order); err != nil {
 		return nil, err
@@ -460,7 +467,11 @@ var processShippingHandler = func(ctx context.Context, order map[string]any) err
 type ShippingHandler struct{ target *FloxyStressTarget }
 
 func (h *ShippingHandler) Name() string { return "shipping" }
-func (h *ShippingHandler) Execute(ctx context.Context, stepCtx floxy.StepContext, input json.RawMessage) (json.RawMessage, error) {
+func (h *ShippingHandler) Execute(
+	ctx context.Context,
+	stepCtx floxy.StepContext,
+	input json.RawMessage,
+) (json.RawMessage, error) {
 	var order map[string]any
 	if err := json.Unmarshal(input, &order); err != nil {
 		return nil, err
@@ -476,7 +487,11 @@ func (h *ShippingHandler) Execute(ctx context.Context, stepCtx floxy.StepContext
 type NotificationHandler struct{ target *FloxyStressTarget }
 
 func (h *NotificationHandler) Name() string { return "notification" }
-func (h *NotificationHandler) Execute(ctx context.Context, stepCtx floxy.StepContext, input json.RawMessage) (json.RawMessage, error) {
+func (h *NotificationHandler) Execute(
+	ctx context.Context,
+	stepCtx floxy.StepContext,
+	input json.RawMessage,
+) (json.RawMessage, error) {
 	time.Sleep(time.Millisecond * time.Duration(5+rand.Intn(10)))
 
 	return input, nil
@@ -485,7 +500,11 @@ func (h *NotificationHandler) Execute(ctx context.Context, stepCtx floxy.StepCon
 type ValidationHandler struct{ target *FloxyStressTarget }
 
 func (h *ValidationHandler) Name() string { return "validation" }
-func (h *ValidationHandler) Execute(ctx context.Context, stepCtx floxy.StepContext, input json.RawMessage) (json.RawMessage, error) {
+func (h *ValidationHandler) Execute(
+	ctx context.Context,
+	stepCtx floxy.StepContext,
+	input json.RawMessage,
+) (json.RawMessage, error) {
 	time.Sleep(time.Millisecond * time.Duration(5+rand.Intn(10)))
 
 	return input, nil
@@ -494,7 +513,11 @@ func (h *ValidationHandler) Execute(ctx context.Context, stepCtx floxy.StepConte
 type CompensationHandler struct{ target *FloxyStressTarget }
 
 func (h *CompensationHandler) Name() string { return "compensation" }
-func (h *CompensationHandler) Execute(ctx context.Context, stepCtx floxy.StepContext, input json.RawMessage) (json.RawMessage, error) {
+func (h *CompensationHandler) Execute(
+	ctx context.Context,
+	stepCtx floxy.StepContext,
+	input json.RawMessage,
+) (json.RawMessage, error) {
 	action, _ := stepCtx.GetVariableAsString("action")
 	time.Sleep(time.Millisecond * time.Duration(5+rand.Intn(10)))
 
@@ -503,7 +526,6 @@ func (h *CompensationHandler) Execute(ctx context.Context, stepCtx floxy.StepCon
 
 // Floxy Metrics Collector
 type FloxyMetricsCollector struct {
-	mu                    sync.RWMutex
 	workflowsStarted      atomic.Int64
 	workflowsCompleted    atomic.Int64
 	workflowsFailed       atomic.Int64
@@ -522,7 +544,12 @@ func (c *FloxyMetricsCollector) RecordWorkflowStarted(instanceID int64, workflow
 	c.workflowsStarted.Add(1)
 }
 
-func (c *FloxyMetricsCollector) RecordWorkflowCompleted(instanceID int64, workflowID string, duration time.Duration, status floxy.WorkflowStatus) {
+func (c *FloxyMetricsCollector) RecordWorkflowCompleted(
+	instanceID int64,
+	workflowID string,
+	duration time.Duration,
+	status floxy.WorkflowStatus,
+) {
 	c.workflowsCompleted.Add(1)
 	c.totalWorkflowDuration.Add(duration.Milliseconds())
 }
@@ -535,21 +562,40 @@ func (c *FloxyMetricsCollector) RecordWorkflowFailed(instanceID int64, workflowI
 func (c *FloxyMetricsCollector) RecordWorkflowStatus(instanceID int64, workflowID string, status floxy.WorkflowStatus) {
 }
 
-func (c *FloxyMetricsCollector) RecordStepStarted(instanceID int64, workflowID, stepName string, stepType floxy.StepType) {
+func (c *FloxyMetricsCollector) RecordStepStarted(
+	instanceID int64,
+	workflowID,
+	stepName string,
+	stepType floxy.StepType,
+) {
 	c.stepsStarted.Add(1)
 }
 
-func (c *FloxyMetricsCollector) RecordStepCompleted(instanceID int64, workflowID, stepName string, stepType floxy.StepType, duration time.Duration) {
+func (c *FloxyMetricsCollector) RecordStepCompleted(
+	instanceID int64,
+	workflowID, stepName string,
+	stepType floxy.StepType,
+	duration time.Duration,
+) {
 	c.stepsCompleted.Add(1)
 	c.totalStepDuration.Add(duration.Milliseconds())
 }
 
-func (c *FloxyMetricsCollector) RecordStepFailed(instanceID int64, workflowID, stepName string, stepType floxy.StepType, duration time.Duration) {
+func (c *FloxyMetricsCollector) RecordStepFailed(
+	instanceID int64,
+	workflowID, stepName string,
+	stepType floxy.StepType,
+	duration time.Duration,
+) {
 	c.stepsFailed.Add(1)
 	c.totalStepDuration.Add(duration.Milliseconds())
 }
 
-func (c *FloxyMetricsCollector) RecordStepStatus(instanceID int64, workflowID, stepName string, status floxy.StepStatus) {
+func (c *FloxyMetricsCollector) RecordStepStatus(
+	instanceID int64,
+	workflowID, stepName string,
+	status floxy.StepStatus,
+) {
 }
 
 func (c *FloxyMetricsCollector) GetStats() map[string]interface{} {

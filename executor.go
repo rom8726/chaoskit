@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand"
 	"time"
 )
 
@@ -122,6 +123,16 @@ func (e *Executor) Run(ctx context.Context, scenario *Scenario) error {
 	if scenario.target == nil {
 		return fmt.Errorf("scenario %s has no target", scenario.name)
 	}
+
+	// Create a deterministic random generator if seed is set
+	var rng *rand.Rand
+	if scenario.seed != nil {
+		rng = rand.New(rand.NewSource(*scenario.seed))
+		e.log("Using deterministic seed: %d", *scenario.seed)
+	} else {
+		rng = rand.New(rand.NewSource(rand.Int63()))
+	}
+	ctx = AttachRand(ctx, rng)
 
 	// Setup target
 	if err := scenario.target.Setup(ctx); err != nil {
@@ -275,6 +286,17 @@ func (e *Executor) executeOnce(ctx context.Context, scenario *Scenario) Executio
 		ScenarioName: scenario.name,
 		Success:      true,
 		Timestamp:    start,
+	}
+
+	// Ensure rand generator is attached (in case executeOnce is called directly)
+	if ctx.Value(randKey{}) == nil {
+		var rng *rand.Rand
+		if scenario.seed != nil {
+			rng = rand.New(rand.NewSource(*scenario.seed))
+		} else {
+			rng = rand.New(rand.NewSource(rand.Int63()))
+		}
+		ctx = AttachRand(ctx, rng)
 	}
 
 	// Attach event recorder to context for steps to use

@@ -138,8 +138,13 @@ func (m *MonkeyPatchTimeoutInjector) Inject(ctx context.Context) error {
 			outTypes[j] = originalType.Out(j)
 		}
 
+		rng := chaoskit.GetRand(ctx) // Get deterministic generator from context
+		if rng == nil {
+			rng = rand.New(rand.NewSource(rand.Int63()))
+		}
+
 		if err := ApplyPatch(&handle, func(args []reflect.Value) []reflect.Value {
-			if rand.Float64() < probability {
+			if rng.Float64() < probability {
 				// Apply timeout: wrap context with timeout
 				ctx := args[0].Interface().(context.Context)
 				timeoutCtx, cancel := context.WithTimeout(ctx, timeout)

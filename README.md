@@ -7,7 +7,15 @@ A modular Go framework for chaos engineering, fault injection, and reliability t
 
 ## Overview
 
-ChaosKit enables systematic testing of system reliability and resilience through controlled fault injection and invariant validation. The framework is designed to detect issues that traditional unit and integration tests often miss, such as infinite rollback loops, goroutine leaks, and unbounded recursion in saga orchestrators and workflow engines.
+ChaosKit enables systematic testing of system reliability and resilience through controlled fault injection and invariant validation.
+The framework is designed to detect issues that traditional unit and integration tests often miss, such as infinite rollback loops,
+goroutine leaks, and unbounded recursion in saga orchestrators and workflow engines.
+
+**⚠️ Important**: ChaosKit is designed for **proactive chaos engineering** - it works best when integrated into your code from the start.
+Most injection methods require adding chaos hooks to your code (except ToxiProxy for network chaos).
+This makes ChaosKit ideal for new projects or when you can modify the code being tested.
+
+**Key Philosophy**: Build resilient systems by designing them to be testable with chaos from day one, rather than retrofitting chaos testing into existing code.
 
 ## Key Capabilities
 
@@ -52,27 +60,57 @@ require github.com/rom8726/chaoskit v1.0.0
 
 ### Prerequisites
 
-- Go 1.21 or later (for structured logging with `slog`)
-- For monkey patching: Build with `-gcflags=all=-l`
-- For gofail: Build with `-tags failpoint`
-- For ToxiProxy: ToxiProxy server running (optional)
+- Go 1.25 or later
+- **Important**: Most chaos injection requires **modifying your code** (see "Injection Methods" section)
+- For monkey patching: Build with `-gcflags=all=-l` (not recommended, see limitations)
+- For gofail: Build with `-tags failpoint` and instrument code with `failpoint.Inject()`
+- For ToxiProxy: ToxiProxy server running (this is the only method that works without code changes)
 
 ## When to Use ChaosKit
 
-ChaosKit is ideal for:
+### Ideal Use Cases
 
+ChaosKit is **best suited for**:
+
+- **New Libraries and Frameworks**: Projects designed from scratch with chaos testing in mind
 - **Workflow Engine Testing**: Test saga orchestrators, state machines, and workflow engines
 - **Rollback Testing**: Verify bounded recursion depth in compensation handlers
 - **Resource Leak Detection**: Find goroutine leaks, memory leaks, and resource exhaustion
-- **Network Resilience**: Test system behavior under network failures
+- **Network Resilience**: Test system behavior under network failures (via ToxiProxy)
 - **Error Recovery**: Validate error handling and recovery mechanisms
-- **Performance Testing**: Ensure system maintains performance under chaos
 - **Continuous Reliability**: Long-duration testing to discover edge cases
 
-**Not suitable for:**
-- Unit testing (use standard Go testing)
-- Integration testing without chaos requirements
-- Production monitoring (use observability tools)
+### ⚠️ Important Limitations
+
+**Code Instrumentation Required**: Most injection methods (context-based, monkey patching, failpoints) require **modifying your code** to add chaos hooks. This means:
+
+- ✅ **Works great**: New projects designed with ChaosKit integration
+- ✅ **Works great**: Network operations (ToxiProxy works without code changes)
+- ⚠️ **Limited support**: Existing libraries require code modifications or wrappers
+- ⚠️ **Limited support**: Monkey patching only works with specific code patterns
+- ❌ **Won't work**: Production-optimized code with inlining enabled
+- ❌ **Won't work**: Third-party libraries you cannot modify
+
+### ❌ Not Suitable For
+
+- **Testing existing libraries "as-is"**: Without adding chaos hooks or using ToxiProxy
+- **Unit testing**: Use standard Go testing instead
+- **Infrastructure-level chaos**: Use Chaos Mesh, Litmus, or Gremlin instead
+- **Production monitoring**: Use observability tools like Prometheus/Grafana
+- **Black-box testing**: When you cannot modify the tested code
+
+### 💡 Recommended Approach
+
+**For New Projects**: Design your code with chaos testing from the start by:
+- Adding `chaoskit.MaybeX(ctx)` calls at critical points
+- Using `failpoint.Inject()` for production-safe chaos points
+- Passing context through your entire call chain
+
+**For Existing Projects**: Consider:
+- ToxiProxy for network-level chaos (no code changes needed)
+- Creating chaos-aware wrappers around existing components
+- Gradually adding failpoints to critical paths
+- Forking libraries to add chaos instrumentation
 
 ## Quick Start
 
@@ -130,6 +168,173 @@ func main() {
 }
 ```
 
+## Injection Methods: Capabilities and Limitations
+
+ChaosKit provides multiple injection methods, each with different trade-offs:
+
+### 1. Context-Based Injection (Recommended for New Code)
+
+**How it works**: Explicitly call chaos functions in your code.
+
+```go
+func ProcessOrder(ctx context.Context, order Order) error {
+    chaoskit.MaybePanic(ctx)   // Inject panic with configured probability
+    chaoskit.MaybeDelay(ctx)   // Inject delay with configured duration
+    
+    // Your business logic
+}
+```
+
+**Capabilities**:
+- ✅ Fine-grained control over injection points
+- ✅ Works in production (controlled by context)
+- ✅ Type-safe and explicit
+- ✅ Low overhead
+
+**Limitations**:
+- ❌ Requires code modification
+- ❌ Cannot test existing code without changes
+- ❌ Need to identify and instrument all critical paths
+
+**Best for**: New projects, microservices, workflow engines
+
+---
+
+### 2. Failpoint Injection (Recommended for Production)
+
+**How it works**: Add compile-time injection points.
+
+```go
+import "github.com/pingcap/failpoint"
+
+func SaveData(data Data) error {
+    failpoint.Inject("save-error", func() {
+        return errors.New("injected error")
+    })
+    
+    // Your business logic
+}
+```
+
+**Capabilities**:
+- ✅ Production-safe (compiles to no-op without `-tags failpoint`)
+- ✅ Used by production systems (etcd, TiDB)
+- ✅ No runtime overhead in production builds
+- ✅ Explicit injection points
+
+**Limitations**:
+- ❌ Requires code modification
+- ❌ Need separate build for chaos testing (`-tags failpoint`)
+- ❌ Cannot test existing code without adding failpoints
+
+**Best for**: Production systems, critical infrastructure, databases
+
+---
+
+### 3. ToxiProxy (Recommended for Network Chaos)
+
+**How it works**: Proxy network connections through ToxiProxy.
+
+```go
+// No code changes needed!
+// Just change connection string from:
+db, _ := sql.Open("postgres", "localhost:5432")
+
+// To proxied connection:
+db, _ := sql.Open("postgres", "localhost:25432")  // ToxiProxy listens here
+
+// Configure chaos via ChaosKit:
+toxiProxy := injectors.ToxiProxyLatency("db-proxy", "localhost:5432", 100*time.Millisecond)
+```
+
+**Capabilities**:
+- ✅ **No code changes required**
+- ✅ Works with any language/library
+- ✅ Real network conditions (latency, bandwidth, packet loss)
+- ✅ Production-ready tool
+
+**Limitations**:
+- ⚠️ Only works for network operations
+- ⚠️ Requires ToxiProxy server infrastructure
+- ⚠️ Cannot inject application-level failures (panics, logic errors)
+
+**Best for**: Database chaos, HTTP services, gRPC, any network I/O
+
+---
+
+### 4. Monkey Patching (⚠️ Limited Use Cases)
+
+**How it works**: Runtime function replacement via reflection.
+
+```go
+// Your code must be structured like this:
+var ProcessFunc = func() error {  // Must be package-level var
+    return nil
+}
+
+// ChaosKit can patch it:
+injector := injectors.MonkeyPatchPanic([]PatchTarget{
+    {Func: &ProcessFunc, Probability: 0.1},
+})
+```
+
+**Capabilities**:
+- ⚠️ No code changes *if* functions are already package-level vars
+- ⚠️ Can inject chaos into specific functions
+
+**Limitations**:
+- ❌ Only works with **package-level function variables**
+- ❌ Does NOT work with: struct methods, private functions, closures, local vars
+- ❌ Requires `-gcflags=all=-l` (disables inlining optimization)
+- ❌ High performance overhead (reflection)
+- ❌ **NEVER use in production**
+- ❌ Most real Go code cannot be monkey-patched
+
+**Example of what CANNOT be patched**:
+```go
+// ❌ Struct methods - cannot patch
+type Service struct{}
+func (s *Service) Process() error { return nil }
+
+// ❌ Private functions - cannot patch
+func processInternal() error { return nil }
+
+// ❌ Local functions - cannot patch
+func main() {
+    localFunc := func() error { return nil }
+}
+```
+
+**Best for**: Very specific testing scenarios, code already using function variables
+
+---
+
+### Summary Table
+
+| Method | Code Changes | Works with Existing Code | Production-Safe | Performance | Recommendation |
+|--------|-------------|--------------------------|-----------------|-------------|----------------|
+| **Context-Based** | ✅ Required | ❌ No | ✅ Yes | Excellent | ⭐⭐⭐⭐⭐ New projects |
+| **Failpoints** | ✅ Required | ❌ No | ✅ Yes (no-op) | Excellent | ⭐⭐⭐⭐⭐ Production |
+| **ToxiProxy** | ❌ None | ✅ Yes | ✅ Yes | Good | ⭐⭐⭐⭐⭐ Network |
+| **Monkey Patch** | ⚠️ Specific | ❌ Rarely | ❌ Never | Poor | ⭐ Avoid |
+
+### Choosing the Right Method
+
+**For new Go projects**: Use **Context-Based** + **ToxiProxy**
+- Add `MaybeX(ctx)` calls at critical points
+- Use ToxiProxy for database/network chaos
+
+**For production systems**: Use **Failpoints** + **ToxiProxy**
+- Add `failpoint.Inject()` at critical points
+- Build with `-tags failpoint` for chaos testing
+- Production builds have zero overhead
+
+**For existing code (cannot modify)**: Use **ToxiProxy only**
+- Limited to network-level chaos
+- Consider creating wrappers for application-level chaos
+
+**Avoid monkey patching** unless you have very specific needs and understand the limitations.
+
 ## Core Components
 
 ### Chaos Injectors
@@ -142,10 +347,10 @@ func main() {
 
 **Network Injectors**:
 - **ToxiProxy Injectors**: Network-level chaos (latency, bandwidth, timeout, packet slicing)
-  - `ToxiProxyLatency`: Add network delays with jitter
-  - `ToxiProxyBandwidth`: Limit transfer speeds
-  - `ToxiProxyTimeout`: Connection timeouts
-  - `ToxiProxySlicer`: Packet loss simulation
+    - `ToxiProxyLatency`: Add network delays with jitter
+    - `ToxiProxyBandwidth`: Limit transfer speeds
+    - `ToxiProxyTimeout`: Connection timeouts
+    - `ToxiProxySlicer`: Packet loss simulation
 - **ContextualNetworkInjector**: Per-request network chaos via context
 
 **Advanced Injectors**:
@@ -412,56 +617,250 @@ Before running chaos tests in production-like environments:
 
 ## Comparison with Other Tools
 
-| Feature | ChaosKit | Chaos Monkey | Litmus | Gremlin |
-|---------|----------|-------------|--------|---------|
-| Language | Go | Java | Kubernetes | Multi |
-| Focus | Libraries/Services | AWS | Kubernetes | Infrastructure |
-| Code Instrumentation | ✅ | ❌ | ❌ | ❌ |
-| Custom Injectors | ✅ | Limited | Limited | Limited |
-| Validators | ✅ | ❌ | ❌ | ❌ |
-| Structured Logging | ✅ | ❌ | ❌ | ❌ |
-| Context-Based Chaos | ✅ | ❌ | ❌ | ❌ |
+| Feature | ChaosKit | ToxiProxy | Chaos Mesh | Litmus | Gremlin |
+|---------|----------|-----------|------------|--------|---------|
+| **Target** | Go libraries | Network layer | Kubernetes | Kubernetes | Infrastructure |
+| **Scope** | Code-level | Network-level | Pod-level | Cluster-level | System-level |
+| **Code Changes Required** | ✅ Yes (most)* | ❌ No | ❌ No | ❌ No | ❌ No |
+| **Language** | Go | Any | Any | Any | Any |
+| **Network Chaos** | ✅ (ToxiProxy) | ✅ Native | ✅ | ✅ | ✅ |
+| **Custom Injectors** | ✅ Easy | ⚠️ Limited | ⚠️ Limited | ⚠️ Limited | ❌ No |
+| **Validators/Assertions** | ✅ Built-in | ❌ No | ⚠️ Limited | ⚠️ Limited | ❌ No |
+| **Fine-grained Control** | ✅ Yes | ⚠️ Connection | ⚠️ Pod | ⚠️ Pod | ⚠️ Node |
+| **Production Ready** | ⚠️ Failpoints | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes |
+| **Learning Curve** | Medium | Low | High | High | Low |
+| **Deployment** | Embedded | Proxy | Operator | Operator | Agent |
+
+\* **Exception**: ToxiProxy integration works without code changes
+
+### Key Differences
+
+**ChaosKit Strengths**:
+- 🎯 **Fine-grained control**: Inject chaos at specific code points
+- 🔍 **Built-in validation**: Verify invariants like recursion depth, goroutine leaks
+- 🛠️ **Extensible**: Easy to create custom injectors for Go code
+- 📊 **Go-native**: Native Go integration, no external dependencies (except ToxiProxy)
+
+**ChaosKit Limitations**:
+- ⚠️ **Requires code instrumentation**: Most features need code modifications
+- ⚠️ **Go-only**: Cannot test services in other languages
+- ⚠️ **Not infrastructure-level**: Cannot simulate node failures, network partitions
+- ⚠️ **Limited to application layer**: Cannot test kernel, storage, or hardware failures
+
+**When to Choose Each Tool**:
+
+| Use Case | Best Tool | Why |
+|----------|-----------|-----|
+| New Go library/framework | **ChaosKit** | Code-level control, built-in validators |
+| Network chaos (any language) | **ToxiProxy** | No code changes, works everywhere |
+| Kubernetes chaos | **Chaos Mesh / Litmus** | Pod/container-level chaos |
+| Infrastructure chaos | **Gremlin** | System-level failures |
+| Existing code (no changes) | **ToxiProxy** | Only network, but works out-of-box |
 
 **ChaosKit is best for:**
-- Testing Go libraries and services
-- Workflow engine reliability
-- Code-level fault injection
-- Custom chaos scenarios
+- Testing **new** Go libraries and services designed with chaos testing
+- Workflow engine reliability with custom validators
+- Code-level fault injection with fine-grained control
 - Development and CI/CD pipelines
+- Learning chaos engineering principles in Go
+
+**Consider alternatives if:**
+- You need infrastructure-level chaos (use Chaos Mesh/Litmus/Gremlin)
+- You cannot modify code and need more than network chaos
+- You're testing non-Go services
+- You need production-ready chaos without code changes
 
 ## FAQ
 
+### Q: Can I use ChaosKit to test existing libraries without modifying them?
+
+**A**: Only partially. **ToxiProxy integration** works without code changes for network chaos (database connections, HTTP calls, etc.). However, for panic injection, delays, or custom chaos, you'll need to either:
+- Add chaos hooks to the code (`MaybePanic`, `MaybeDelay`)
+- Create a wrapper that adds chaos between your code and the library
+- Fork the library and add failpoints
+
+**Realistic expectation**: ChaosKit works best with code designed for chaos testing from the start.
+
+### Q: Will monkey patching work with my existing code?
+
+**A**: Probably not. Monkey patching has severe limitations:
+- ❌ Only works with **package-level function variables** (`var MyFunc = func() {}`)
+- ❌ Does **not work** with struct methods, private functions, or local closures
+- ❌ Requires building with `-gcflags=all=-l` (disables optimizations)
+- ❌ **Never use in production** - only for isolated testing
+
+Most real-world Go code uses methods and private functions, which cannot be monkey-patched. Consider using failpoints or context-based chaos instead.
+
 ### Q: Can I use ChaosKit in production?
 
-A: Yes, but with caution. Use low chaos probabilities and monitor closely. Never use monkey patching in production.
+**A**: With significant caveats:
+- ✅ **Failpoints** are production-safe (compile to no-op without `-tags failpoint`)
+- ✅ **ToxiProxy** can be used in staging/pre-prod environments
+- ⚠️ **Context-based chaos** is possible but use very low probabilities (< 0.001)
+- ❌ **Monkey patching** should NEVER be used in production
 
-### Q: Does ChaosKit affect production systems?
+**Recommendation**: Use failpoints for production chaos, or run ChaosKit in dedicated chaos testing environments that mirror production.
 
-A: Only if you configure it to. By default, chaos is isolated to your test scenarios. Network injectors require explicit proxy setup.
+### Q: How do I test a third-party library like `github.com/someone/library`?
 
-### Q: How do I test distributed systems?
+**A**: You have three options:
 
-A: Use network injectors (ToxiProxy) or context-based network chaos. Each service can run its own chaos scenarios.
+1. **ToxiProxy** (if the library uses network): Proxy database/HTTP connections
+   ```go
+   // No library changes needed
+   toxiProxy := injectors.ToxiProxyLatency(...)
+   ```
+
+2. **Wrapper Pattern**: Create your own wrapper with chaos hooks
+   ```go
+   type ChaosLibWrapper struct {
+       lib *library.Client
+   }
+   func (w *ChaosLibWrapper) DoWork(ctx context.Context) error {
+       chaoskit.MaybeDelay(ctx)
+       return w.lib.DoWork()
+   }
+   ```
+
+3. **Fork and instrument**: Fork the library and add failpoints (maintenance burden)
+
+**Realistic expectation**: Without network operations, testing third-party libraries requires wrapper code or forking.
+
+### Q: What's the difference between ChaosKit and Chaos Mesh/Litmus?
+
+**A**: Different layers:
+
+- **ChaosKit**: Application code level (function calls, goroutines)
+    - Requires code changes
+    - Fine-grained control at code level
+    - Go-specific
+
+- **Chaos Mesh/Litmus**: Infrastructure level (pods, network, nodes)
+    - No code changes needed
+    - Kubernetes-native
+    - Language-agnostic
+
+**Use both**: ChaosKit for application logic, Chaos Mesh for infrastructure failures.
 
 ### Q: Can I create custom injectors?
 
-A: Yes! Implement the `Injector` interface. See [TUTORIAL.md](TUTORIAL.md) Part 5 for examples.
+**A**: Yes! Implement the `Injector` interface:
+
+```go
+type MyInjector struct{}
+
+func (m *MyInjector) Name() string { return "my-injector" }
+func (m *MyInjector) Inject(ctx context.Context) error { /* start chaos */ }
+func (m *MyInjector) Stop(ctx context.Context) error { /* stop chaos */ }
+```
+
+See [TUTORIAL.md](TUTORIAL.md) Part 5 for detailed examples of custom injectors and validators.
 
 ### Q: How do I debug failing scenarios?
 
-A: Enable debug logging: `WithLogLevel(slog.LevelDebug)`. Review structured logs for detailed execution flow.
+**A**: Follow this debugging process:
+
+1. Enable debug logging: `WithLogLevel(slog.LevelDebug)`
+2. Use `WithSeed()` for reproducible failures
+3. Reduce chaos probabilities to isolate the issue
+4. Check validator thresholds (may be too strict)
+5. Review execution reports: `reporter.GenerateReport()`
+6. Add instrumentation: `RecordRecursionDepth()`, `RecordPanic()`
+
+**Common issues**:
+- Validators too strict: Adjust thresholds based on baseline metrics
+- Chaos probability too high: Start with 0.01 (1%) and increase gradually
+- Missing instrumentation: Ensure you call `MaybeX()` functions
 
 ### Q: What's the difference between injectors and validators?
 
-A: **Injectors** introduce faults (delays, panics, etc.). **Validators** verify invariants (no leaks, bounded recursion, etc.).
+**A**: Two different phases:
+
+- **Injectors** (Inject phase): Introduce chaos during execution
+    - Examples: delays, panics, resource pressure
+    - Active: Modify system behavior
+
+- **Validators** (Validate phase): Check invariants after execution
+    - Examples: goroutine count, recursion depth, memory usage
+    - Passive: Verify system state
+
+**Pattern**: Injector creates chaos → System responds → Validator checks if system handled it correctly
+
+### Q: Can I test distributed systems with ChaosKit?
+
+**A**: Limited support:
+
+- ✅ **Network chaos**: Use ToxiProxy to simulate network failures between services
+- ✅ **Per-service chaos**: Each service runs its own ChaosKit scenarios
+- ❌ **Coordinated chaos**: No built-in support for multi-service orchestration
+- ❌ **Network partitions**: Use Chaos Mesh or Litmus instead
+
+**Approach for distributed systems**:
+1. Use ToxiProxy for inter-service network chaos
+2. Run ChaosKit independently in each service
+3. Use Chaos Mesh for infrastructure-level failures (network partitions, node failures)
 
 ### Q: How do I test rollback mechanisms?
 
-A: Use `RecordRecursionDepth()` in your rollback code and add `RecursionDepthLimit` validator. See examples for workflow engines.
+**A**: Use recursion depth tracking:
 
-### Q: Can I use ChaosKit with existing test frameworks?
+```go
+func CompensateOrder(ctx context.Context, depth int) error {
+    chaoskit.RecordRecursionDepth(ctx, depth)
+    chaoskit.MaybePanic(ctx)  // Inject chaos during rollback
+    
+    // Your compensation logic
+    if depth < maxDepth {
+        return CompensateOrder(ctx, depth+1)
+    }
+}
 
-A: Yes! ChaosKit scenarios can be run from Go tests. See `examples/testing_example/` for integration examples.
+// Validate bounded recursion
+scenario := chaoskit.NewScenario("rollback-test").
+    Assert("recursion-depth", validators.RecursionDepthLimit(10))
+```
+
+See `examples/workflow_engine/` for complete examples.
+
+### Q: Can I use ChaosKit with standard Go tests?
+
+**A**: Yes! ChaosKit scenarios can run from Go test functions:
+
+```go
+func TestServiceWithChaos(t *testing.T) {
+    scenario := chaoskit.NewScenario("test").
+        WithTarget(myService).
+        Inject("delay", injectors.RandomDelay(10*time.Millisecond, 50*time.Millisecond)).
+        Assert("no-leaks", validators.GoroutineLimit(100)).
+        Repeat(100).
+        Build()
+    
+    if err := chaoskit.Run(context.Background(), scenario); err != nil {
+        t.Fatalf("Chaos test failed: %v", err)
+    }
+}
+```
+
+Run with: `go test -v ./...`
+
+### Q: Why are my chaos injections not working?
+
+**A**: Check these common issues:
+
+1. **Context-based chaos**: Did you call `MaybePanic(ctx)` / `MaybeDelay(ctx)` in your code?
+    - These functions do nothing if not called explicitly
+
+2. **Monkey patching**: Did you build with `-gcflags=all=-l`?
+    - Without this flag, functions get inlined and can't be patched
+
+3. **Probability too low**: `0.01` = 1% chance
+    - Run 100+ iterations or increase probability for testing
+
+4. **Injector not started**: Check logs for "injector started" messages
+
+5. **Wrong injection method**: Some methods only work with specific code patterns
+
+**Debugging**: Enable debug logging and review injector metrics: `injector.GetMetrics()`
 
 ## Performance Considerations
 
@@ -486,6 +885,35 @@ Expected overhead:
 **Never use monkey patching in production code.**
 
 ## Troubleshooting
+
+### "I added injectors but no chaos is happening"
+
+**Root cause**: Most chaos injection requires explicit instrumentation in your code.
+
+**Solutions**:
+- **Context-based chaos**: Add `chaoskit.MaybePanic(ctx)`, `chaoskit.MaybeDelay(ctx)` in your code
+- **Failpoints**: Add `failpoint.Inject("name", func() {...})` and build with `-tags failpoint`
+- **Monkey patching**: Check if your functions are package-level vars (most aren't)
+- **ToxiProxy**: Verify proxy is running and connections are routed through it
+
+**Check**: Enable debug logging to see if injectors are starting:
+```go
+executor := chaoskit.NewExecutor(
+    chaoskit.WithLogLevel(slog.LevelDebug),
+)
+```
+
+### "Can I test library X without modifying it?"
+
+**Short answer**: Only if X uses network I/O (use ToxiProxy). Otherwise, you need code changes.
+
+**Options**:
+1. **ToxiProxy**: If library uses database/HTTP/network → proxy connections (no code changes)
+2. **Wrapper**: Create your own wrapper with chaos hooks
+3. **Fork**: Fork library and add failpoints/context chaos
+4. **Different tool**: Consider infrastructure-level tools (Chaos Mesh, Litmus)
+
+**Reality check**: ChaosKit is designed for proactive chaos engineering, not retrofitting existing code.
 
 ### Scenario fails immediately
 
@@ -517,15 +945,18 @@ Expected overhead:
 - Verify if failures indicate legitimate system issues
 - Review validator thresholds - they may be too strict
 
-### No chaos being injected
+### Monkey patching not working
 
-**Problem**: Chaos injectors don't seem to be working.
+**Problem**: Functions aren't being patched.
 
-**Solutions**:
-- For context-based chaos: Ensure you call `MaybeDelay()`, `MaybePanic()` in your code
-- Check injector probabilities (0.01 = 1% chance)
-- Verify injectors are started (check logs for "injector started" messages)
-- For monkey patching: Ensure you build with `-gcflags=all=-l`
+**Root causes**:
+- ❌ Function is a struct method (not supported)
+- ❌ Function is private (not supported)
+- ❌ Function is a local variable (not supported)
+- ❌ Not building with `-gcflags=all=-l`
+- ❌ Function got inlined despite the flag
+
+**Solution**: Use context-based chaos or failpoints instead. Monkey patching works in very limited scenarios.
 
 ### Race conditions detected
 

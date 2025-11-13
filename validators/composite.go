@@ -3,6 +3,7 @@ package validators
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/rom8726/chaoskit"
 )
@@ -28,9 +29,18 @@ func (c *CompositeValidator) Name() string {
 func (c *CompositeValidator) Validate(ctx context.Context, target chaoskit.Target) error {
 	for _, val := range c.validators {
 		if err := val.Validate(ctx, target); err != nil {
+			slog.Error("composite validator failed",
+				slog.String("composite_validator", c.name),
+				slog.String("failed_validator", val.Name()),
+				slog.String("error", err.Error()))
+
 			return fmt.Errorf("validator %s failed: %w", val.Name(), err)
 		}
 	}
+
+	slog.Debug("composite validator passed",
+		slog.String("composite_validator", c.name),
+		slog.Int("validator_count", len(c.validators)))
 
 	return nil
 }

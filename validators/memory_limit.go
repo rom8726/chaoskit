@@ -3,6 +3,7 @@ package validators
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"runtime"
 
 	"github.com/rom8726/chaoskit"
@@ -30,10 +31,30 @@ func (m *MemoryLimitValidator) Validate(ctx context.Context, target chaoskit.Tar
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
 
-	if memStats.Alloc > m.limitBytes {
-		return fmt.Errorf("memory limit exceeded: %d bytes (limit: %d bytes)",
-			memStats.Alloc, m.limitBytes)
+	// Warn if approaching limit (80% threshold)
+	if memStats.Alloc > m.limitBytes*9/10 {
+		slog.Warn("memory usage approaching limit",
+			slog.String("validator", m.name),
+			slog.Uint64("allocated_bytes", memStats.Alloc),
+			slog.Uint64("limit_bytes", m.limitBytes))
 	}
+
+	if memStats.Alloc > m.limitBytes {
+		err := fmt.Errorf("memory limit exceeded: %d bytes (limit: %d bytes)",
+			memStats.Alloc, m.limitBytes)
+		slog.Error("memory limit validator failed",
+			slog.String("validator", m.name),
+			slog.Uint64("allocated_bytes", memStats.Alloc),
+			slog.Uint64("limit_bytes", m.limitBytes),
+			slog.String("error", err.Error()))
+
+		return err
+	}
+
+	slog.Debug("memory limit validator passed",
+		slog.String("validator", m.name),
+		slog.Uint64("allocated_bytes", memStats.Alloc),
+		slog.Uint64("limit_bytes", m.limitBytes))
 
 	return nil
 }

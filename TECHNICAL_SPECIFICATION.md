@@ -183,10 +183,10 @@ logger.Error("injector failed",
 
 #### 4.2.4 Update Validators
 
-- [ ] Add `slog.Logger` field to validator structs
-- [ ] Log validation failures with context
-- [ ] Log validation warnings (approaching thresholds)
-- [ ] Include validator-specific metrics in logs
+- [x] Add `slog.Logger` field to validator structs (using slog.Default())
+- [x] Log validation failures with context
+- [x] Log validation warnings (approaching thresholds)
+- [x] Include validator-specific metrics in logs
 
 **Code Locations:** All files in `validators/` directory
 

@@ -3,6 +3,7 @@ package validators
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -39,12 +40,40 @@ func (e *ExecutionTimeValidator) Validate(ctx context.Context, target chaoskit.T
 	elapsed := time.Since(e.startTime)
 
 	if elapsed < e.minDuration {
-		return fmt.Errorf("execution too fast: %v (min: %v)", elapsed, e.minDuration)
+		err := fmt.Errorf("execution too fast: %v (min: %v)", elapsed, e.minDuration)
+		slog.Error("execution time validator failed",
+			slog.String("validator", e.name),
+			slog.Duration("elapsed", elapsed),
+			slog.Duration("min_duration", e.minDuration),
+			slog.String("error", err.Error()))
+
+		return err
 	}
 
 	if elapsed > e.maxDuration {
-		return fmt.Errorf("execution too slow: %v (max: %v)", elapsed, e.maxDuration)
+		err := fmt.Errorf("execution too slow: %v (max: %v)", elapsed, e.maxDuration)
+		slog.Error("execution time validator failed",
+			slog.String("validator", e.name),
+			slog.Duration("elapsed", elapsed),
+			slog.Duration("max_duration", e.maxDuration),
+			slog.String("error", err.Error()))
+
+		return err
 	}
+
+	// Warn if approaching limits
+	if elapsed > e.maxDuration*9/10 {
+		slog.Warn("execution time approaching max limit",
+			slog.String("validator", e.name),
+			slog.Duration("elapsed", elapsed),
+			slog.Duration("max_duration", e.maxDuration))
+	}
+
+	slog.Debug("execution time validator passed",
+		slog.String("validator", e.name),
+		slog.Duration("elapsed", elapsed),
+		slog.Duration("min_duration", e.minDuration),
+		slog.Duration("max_duration", e.maxDuration))
 
 	return nil
 }

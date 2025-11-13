@@ -3,6 +3,7 @@ package validators
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -35,9 +36,29 @@ func (i *InfiniteLoopValidator) Validate(ctx context.Context, target chaoskit.Ta
 
 	// Check if the validator itself is stuck
 	elapsed := time.Since(i.lastCheckTime)
-	if elapsed > i.timeout {
-		return fmt.Errorf("possible infinite loop detected: no progress for %v", elapsed)
+
+	// Warn if approaching timeout (80% threshold)
+	if elapsed > i.timeout*9/10 {
+		slog.Warn("possible infinite loop approaching timeout",
+			slog.String("validator", i.name),
+			slog.Duration("elapsed", elapsed),
+			slog.Duration("timeout", i.timeout))
 	}
+
+	if elapsed > i.timeout {
+		err := fmt.Errorf("possible infinite loop detected: no progress for %v", elapsed)
+		slog.Error("infinite loop validator failed",
+			slog.String("validator", i.name),
+			slog.Duration("elapsed", elapsed),
+			slog.Duration("timeout", i.timeout),
+			slog.String("error", err.Error()))
+
+		return err
+	}
+
+	slog.Debug("infinite loop validator passed",
+		slog.String("validator", i.name),
+		slog.Duration("elapsed", elapsed))
 
 	i.lastCheckTime = time.Now()
 

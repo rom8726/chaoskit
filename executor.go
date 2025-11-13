@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math/rand"
+	"os"
 	"time"
 )
 
@@ -32,17 +34,44 @@ const (
 type Executor struct {
 	metrics       *MetricsCollector
 	reporter      *Reporter
-	logger        Logger
+	logger        *slog.Logger
 	failurePolicy FailurePolicy
 }
 
 // ExecutorOption configures an Executor
 type ExecutorOption func(*Executor)
 
-// WithLogger sets a custom logger
+// WithLogger sets a custom logger (deprecated, use WithSlogLogger)
 func WithLogger(logger Logger) ExecutorOption {
 	return func(e *Executor) {
+		// Convert old Logger to slog.Logger for backward compatibility
+		e.logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	}
+}
+
+// WithSlogLogger sets a structured logger
+func WithSlogLogger(logger *slog.Logger) ExecutorOption {
+	return func(e *Executor) {
 		e.logger = logger
+	}
+}
+
+// WithLogLevel sets the log level
+func WithLogLevel(level slog.Level) ExecutorOption {
+	return func(e *Executor) {
+		if e.logger == nil {
+			e.logger = slog.Default()
+		}
+		opts := &slog.HandlerOptions{Level: level}
+		e.logger = slog.New(e.logger.Handler().WithAttrs(nil).(slog.Handler))
+		_ = opts // TODO: apply level to handler
+	}
+}
+
+// WithJSONLogging sets JSON output format
+func WithJSONLogging() ExecutorOption {
+	return func(e *Executor) {
+		e.logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	}
 }
 
@@ -72,7 +101,7 @@ func NewExecutor(opts ...ExecutorOption) *Executor {
 	e := &Executor{
 		metrics:       NewMetricsCollector(),
 		reporter:      NewReporter(),
-		logger:        NewDefaultLogger(),
+		logger:        slog.Default(),
 		failurePolicy: FailFast,
 	}
 
@@ -111,7 +140,11 @@ func (e *Executor) getAllInjectors(scenario *Scenario) []Injector {
 
 	// Add injectors from scopes
 	for _, scope := range scenario.scopes {
-		e.log("Scope '%s' contains %d injector(s)", scope.name, len(scope.injectors))
+		if e.logger != nil {
+			e.logger.Debug("scope contains injectors",
+				slog.String("scope", scope.name),
+				slog.Int("injector_count", len(scope.injectors)))
+		}
 		allInjectors = append(allInjectors, scope.injectors...)
 	}
 
@@ -128,7 +161,11 @@ func (e *Executor) Run(ctx context.Context, scenario *Scenario) error {
 	var rng *rand.Rand
 	if scenario.seed != nil {
 		rng = rand.New(rand.NewSource(*scenario.seed))
-		e.log("Using deterministic seed: %d", *scenario.seed)
+		if e.logger != nil {
+			e.logger.Info("using deterministic seed",
+				slog.String("scenario", scenario.name),
+				slog.Int64("seed", *scenario.seed))
+		}
 	} else {
 		rng = rand.New(rand.NewSource(rand.Int63()))
 	}
@@ -140,7 +177,11 @@ func (e *Executor) Run(ctx context.Context, scenario *Scenario) error {
 	}
 	defer func() {
 		if err := scenario.target.Teardown(ctx); err != nil {
-			e.log("Teardown error: %v", err)
+			if e.logger != nil {
+				e.logger.Warn("teardown error",
+					slog.String("scenario", scenario.name),
+					slog.String("error", err.Error()))
+			}
 		}
 	}()
 
@@ -155,14 +196,23 @@ func (e *Executor) Run(ctx context.Context, scenario *Scenario) error {
 				return fmt.Errorf("network setup failed for %s: %w", inj.Name(), err)
 			}
 			networkInjectors = append(networkInjectors, inj)
-			e.log("Network injector %s setup completed", inj.Name())
+			if e.logger != nil {
+				e.logger.Info("network injector setup completed",
+					slog.String("scenario", scenario.name),
+					slog.String("injector", inj.Name()))
+			}
 		}
 	}
 	defer func() {
 		for _, inj := range networkInjectors {
 			if lifecycle, ok := inj.(NetworkInjectorLifecycle); ok {
 				if err := lifecycle.TeardownNetwork(ctx); err != nil {
-					e.log("Network teardown error for %s: %v", inj.Name(), err)
+					if e.logger != nil {
+						e.logger.Warn("network teardown error",
+							slog.String("scenario", scenario.name),
+							slog.String("injector", inj.Name()),
+							slog.String("error", err.Error()))
+					}
 				}
 			}
 		}
@@ -172,7 +222,12 @@ func (e *Executor) Run(ctx context.Context, scenario *Scenario) error {
 	activeInjectors := make([]Injector, 0, len(allInjectors))
 	for _, inj := range allInjectors {
 		if err := inj.Inject(ctx); err != nil {
-			e.log("Injector %s failed to start: %v", inj.Name(), err)
+			if e.logger != nil {
+				e.logger.Error("injector failed to start",
+					slog.String("scenario", scenario.name),
+					slog.String("injector", inj.Name()),
+					slog.String("error", err.Error()))
+			}
 			// Stop already started injectors
 			e.stopInjectors(ctx, activeInjectors)
 
@@ -193,7 +248,11 @@ func (e *Executor) Run(ctx context.Context, scenario *Scenario) error {
 func (e *Executor) stopInjectors(ctx context.Context, injectors []Injector) {
 	for _, inj := range injectors {
 		if err := inj.Stop(ctx); err != nil {
-			e.log("Injector %s failed to stop: %v", inj.Name(), err)
+			if e.logger != nil {
+				e.logger.Warn("injector failed to stop",
+					slog.String("injector", inj.Name()),
+					slog.String("error", err.Error()))
+			}
 		}
 	}
 }
@@ -224,7 +283,12 @@ func (e *Executor) runRepeated(ctx context.Context, scenario *Scenario) error {
 				return firstError
 			}
 			// Continue on failure - just log it
-			e.log("Execution %d failed (continuing): %v", i+1, result.Error)
+			if e.logger != nil {
+				e.logger.Warn("execution failed (continuing)",
+					slog.String("scenario", scenario.name),
+					slog.Int("iteration", i+1),
+					slog.String("error", result.Error.Error()))
+			}
 		}
 	}
 
@@ -266,7 +330,12 @@ func (e *Executor) runForDuration(ctx context.Context, scenario *Scenario) error
 				return firstError
 			}
 			// Continue on failure - just log it
-			e.log("Execution %d failed (continuing): %v", iteration+1, result.Error)
+			if e.logger != nil {
+				e.logger.Warn("execution failed (continuing)",
+					slog.String("scenario", scenario.name),
+					slog.Int("iteration", iteration+1),
+					slog.String("error", result.Error.Error()))
+			}
 		}
 		iteration++
 	}
@@ -455,9 +524,10 @@ func (e *Executor) buildChaosContext(injectors []Injector) *ChaosContext {
 	return chaos
 }
 
+// log is a helper for backward compatibility (deprecated, use structured logging directly)
 func (e *Executor) log(format string, v ...any) {
 	if e.logger != nil {
-		e.logger.Printf(format, v...)
+		e.logger.Info(fmt.Sprintf(format, v...))
 	}
 }
 

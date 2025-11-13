@@ -47,7 +47,11 @@ func MaybePanic(ctx context.Context) {
 		return
 	}
 
-	if chaos.panicFunc != nil && chaos.panicFunc() {
+	chaos.mu.RLock()
+	panicFunc := chaos.panicFunc
+	chaos.mu.RUnlock()
+
+	if panicFunc != nil && panicFunc() {
 		panic("chaos: injected panic")
 	}
 }

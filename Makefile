@@ -15,6 +15,10 @@ test: ## Run tests
 	@echo "Running tests..."
 	@go test -v -race -gcflags=all=-l ./...
 
+race: ## Run tests with race detector
+	@echo "Running race detector..."
+	@go test -race -count=100 ./...
+
 run-simple: build ## Run simple chaos example
 	@echo "Running simple chaos example..."
 	@./bin/simple

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/rom8726/chaoskit"
@@ -17,7 +18,7 @@ type ContextCancellationInjector struct {
 	probability   float64
 	mu            sync.Mutex
 	stopped       bool
-	cancelCount   int64
+	cancelCount   int64                                  // Use atomic operations for concurrent access
 	cancellations map[context.Context]context.CancelFunc // track active cancellations
 	rng           *rand.Rand                             // Deterministic random generator from context
 }
@@ -74,7 +75,7 @@ func (c *ContextCancellationInjector) Stop(ctx context.Context) error {
 		c.cancellations = make(map[context.Context]context.CancelFunc)
 
 		c.stopped = true
-		fmt.Printf("[CHAOS] Context cancellation injector stopped (total cancellations: %d)\n", c.cancelCount)
+		fmt.Printf("[CHAOS] Context cancellation injector stopped (total cancellations: %d)\n", atomic.LoadInt64(&c.cancelCount))
 	}
 
 	return nil
@@ -87,11 +88,16 @@ func (c *ContextCancellationInjector) GetChaosContext(parent context.Context) (c
 	c.mu.Lock()
 	stopped := c.stopped
 	probability := c.probability
+	rng := c.rng
 	c.mu.Unlock()
 
 	if stopped {
 		// If stopped, just return parent context with no-op cancel
 		return parent, func() {}
+	}
+
+	if rng == nil {
+		rng = rand.New(rand.NewSource(rand.Int63()))
 	}
 
 	// Create child context with cancel
@@ -103,17 +109,8 @@ func (c *ContextCancellationInjector) GetChaosContext(parent context.Context) (c
 	c.mu.Unlock()
 
 	// Check probability for immediate cancellation
-	c.mu.Lock()
-	rng := c.rng
-	c.mu.Unlock()
-	if rng == nil {
-		rng = rand.New(rand.NewSource(rand.Int63()))
-	}
-
 	if rng.Float64() < probability {
-		c.mu.Lock()
-		c.cancelCount++
-		c.mu.Unlock()
+		atomic.AddInt64(&c.cancelCount, 1)
 
 		// Cancel immediately
 		go func() {
@@ -150,10 +147,7 @@ func (c *ContextCancellationInjector) GetCancellationProbability() float64 {
 
 // GetCancelCount returns the number of cancellations applied
 func (c *ContextCancellationInjector) GetCancelCount() int64 {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	return c.cancelCount
+	return atomic.LoadInt64(&c.cancelCount)
 }
 
 // Type implements CategorizedInjector
@@ -168,7 +162,7 @@ func (c *ContextCancellationInjector) GetMetrics() map[string]interface{} {
 
 	return map[string]interface{}{
 		"probability":          c.probability,
-		"total_cancellations":  c.cancelCount,
+		"total_cancellations":  atomic.LoadInt64(&c.cancelCount),
 		"active_cancellations": len(c.cancellations),
 		"stopped":              c.stopped,
 	}

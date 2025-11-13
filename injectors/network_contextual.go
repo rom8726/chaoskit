@@ -138,25 +138,31 @@ func (c *ContextualNetworkInjector) Stop(ctx context.Context) error {
 // ShouldApplyNetworkChaos implements ChaosNetworkProvider
 func (c *ContextualNetworkInjector) ShouldApplyNetworkChaos(host string, port int) bool {
 	c.mu.RLock()
-	defer c.mu.RUnlock()
+	stopped := c.stopped
+	applyRate := c.applyRate
+	rng := c.rng
+	hostPatterns := make(map[string]NetworkRule)
+	for k, v := range c.hostPatterns {
+		hostPatterns[k] = v
+	}
+	c.mu.RUnlock()
 
-	if c.stopped {
+	if stopped {
 		return false
 	}
 
 	// Use stored generator
-	rng := c.rng
 	if rng == nil {
 		rng = rand.New(rand.NewSource(rand.Int63()))
 	}
 
 	// Check apply rate
-	if rng.Float64() >= c.applyRate {
+	if rng.Float64() >= applyRate {
 		return false
 	}
 
 	// Check if host matches any pattern
-	for pattern, rule := range c.hostPatterns {
+	for pattern, rule := range hostPatterns {
 		if matchesHost(pattern, host) {
 			return rng.Float64() < rule.ApplyRate
 		}
@@ -168,21 +174,24 @@ func (c *ContextualNetworkInjector) ShouldApplyNetworkChaos(host string, port in
 // GetNetworkLatency implements ChaosNetworkProvider
 func (c *ContextualNetworkInjector) GetNetworkLatency(host string, port int) (time.Duration, bool) {
 	c.mu.RLock()
-	defer c.mu.RUnlock()
+	stopped := c.stopped
+	rng := c.rng
+	hostPatterns := make(map[string]NetworkRule)
+	for k, v := range c.hostPatterns {
+		hostPatterns[k] = v
+	}
+	c.mu.RUnlock()
 
-	if c.stopped {
+	if stopped {
 		return 0, false
 	}
 
 	// Check host patterns first
-	for pattern, rule := range c.hostPatterns {
+	for pattern, rule := range hostPatterns {
 		if matchesHost(pattern, host) && rule.Latency > 0 {
 			latency := rule.Latency
 			if rule.Jitter > 0 {
 				jitterMs := int(rule.Jitter.Milliseconds())
-				c.mu.RLock()
-				rng := c.rng
-				c.mu.RUnlock()
 				if rng == nil {
 					rng = rand.New(rand.NewSource(rand.Int63()))
 				}
@@ -201,19 +210,24 @@ func (c *ContextualNetworkInjector) GetNetworkLatency(host string, port int) (ti
 // ShouldDropConnection implements ChaosNetworkProvider
 func (c *ContextualNetworkInjector) ShouldDropConnection(host string, port int) bool {
 	c.mu.RLock()
-	defer c.mu.RUnlock()
+	stopped := c.stopped
+	rng := c.rng
+	hostPatterns := make(map[string]NetworkRule)
+	for k, v := range c.hostPatterns {
+		hostPatterns[k] = v
+	}
+	c.mu.RUnlock()
 
-	if c.stopped {
+	if stopped {
 		return false
 	}
 
 	// Check host patterns
-	rng := c.rng
 	if rng == nil {
 		rng = rand.New(rand.NewSource(rand.Int63()))
 	}
 
-	for pattern, rule := range c.hostPatterns {
+	for pattern, rule := range hostPatterns {
 		if matchesHost(pattern, host) {
 			return rng.Float64() < rule.DropProbability
 		}

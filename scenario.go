@@ -5,7 +5,22 @@ import (
 	"time"
 )
 
-// Scenario describes a chaos experiment
+// Scenario describes a chaos experiment.
+// A scenario defines what to test (target), how to test it (steps),
+// what faults to inject (injectors), and what invariants to verify (validators).
+//
+// Scenarios are built using the ScenarioBuilder pattern:
+//
+//	scenario := chaoskit.NewScenario("my-test").
+//		WithTarget(mySystem).
+//		Step("step1", func(ctx context.Context, target chaoskit.Target) error {
+//			// Execute step logic
+//			return nil
+//		}).
+//		Inject("delay", injectors.RandomDelay(10*time.Millisecond, 50*time.Millisecond)).
+//		Assert("goroutines", validators.GoroutineLimit(100)).
+//		Repeat(10).
+//		Build()
 type Scenario struct {
 	name       string
 	target     Target
@@ -34,7 +49,15 @@ type ScenarioBuilder struct {
 	scenario *Scenario
 }
 
-// NewScenario creates a new scenario builder
+// NewScenario creates a new scenario builder.
+// Use the builder methods to configure the scenario, then call Build() to create the Scenario.
+//
+// Example:
+//
+//	scenario := chaoskit.NewScenario("test").
+//		WithTarget(mySystem).
+//		Repeat(5).
+//		Build()
 func NewScenario(name string) *ScenarioBuilder {
 	return &ScenarioBuilder{
 		scenario: &Scenario{

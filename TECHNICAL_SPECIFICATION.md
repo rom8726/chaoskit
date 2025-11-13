@@ -250,22 +250,22 @@ package chaoskit
 ```
 
 **Tasks:**
-- [ ] Add package documentation to `chaoskit.go`
-- [ ] Document `Scenario` type and builder pattern
-- [ ] Document `Injector` interface with implementation guide
-- [ ] Document `Validator` interface with implementation guide
-- [ ] Document `Target` interface with implementation examples
-- [ ] Document all injector types in `injectors/` package
-- [ ] Document all validator types in `validators/` package
-- [ ] Add godoc examples for each major component
+- [x] Add package documentation to `chaoskit.go` (core.go)
+- [x] Document `Scenario` type and builder pattern
+- [x] Document `Injector` interface with implementation guide
+- [x] Document `Validator` interface with implementation guide
+- [x] Document `Target` interface with implementation examples
+- [x] Document all injector types in `injectors/` package (via examples and tutorial)
+- [x] Document all validator types in `validators/` package (via examples and tutorial)
+- [ ] Add godoc examples for each major component (can be added incrementally)
 
 #### 5.2.2 Architecture Documentation
 
-- [ ] Create `ARCHITECTURE.md` with detailed design
-- [ ] Add component interaction diagrams (ASCII or Mermaid)
-- [ ] Document execution flow
-- [ ] Document extension points
-- [ ] Add sequence diagrams for key scenarios
+- [x] Create `ARCHITECTURE.md` with detailed design
+- [x] Add component interaction diagrams (ASCII or Mermaid)
+- [x] Document execution flow
+- [x] Document extension points
+- [x] Add sequence diagrams for key scenarios
 
 **File:** `ARCHITECTURE.md`
 
@@ -289,13 +289,13 @@ package chaoskit
 
 #### 5.2.3 Tutorial and Examples
 
-- [ ] Create `TUTORIAL.md` with progressive examples
+- [x] Create `TUTORIAL.md` with progressive examples
 - [ ] Update `examples/README.md` with detailed explanations
-- [ ] Add example for each injector type
-- [ ] Add example for each validator type
-- [ ] Add example for custom injector implementation
-- [ ] Add example for custom validator implementation
-- [ ] Add example for complex scenarios
+- [x] Add example for each injector type
+- [x] Add example for each validator type
+- [x] Add example for custom injector implementation
+- [x] Add example for custom validator implementation
+- [x] Add example for complex scenarios
 
 **File:** `TUTORIAL.md`
 
@@ -313,24 +313,24 @@ package chaoskit
 
 #### 5.2.4 README Improvements
 
-- [ ] Add badges (build status, coverage, go report card)
-- [ ] Improve "Quick Start" section with runnable example
-- [ ] Add "When to Use ChaosKit" section
-- [ ] Add "Production Checklist" section
-- [ ] Add comparison with other chaos tools
-- [ ] Add FAQ section
-- [ ] Improve troubleshooting section with common issues
-- [ ] Add contributing guidelines link
+- [x] Add badges (build status, coverage, go report card)
+- [x] Improve "Quick Start" section with runnable example
+- [x] Add "When to Use ChaosKit" section
+- [x] Add "Production Checklist" section
+- [x] Add comparison with other chaos tools
+- [x] Add FAQ section
+- [x] Improve troubleshooting section with common issues
+- [x] Add contributing guidelines link
 
 **File:** `README.md`
 
 **New Sections:**
-- [ ] Prerequisites and requirements
-- [ ] Installation alternatives (go get, docker)
-- [ ] Configuration reference
-- [ ] Best practices
-- [ ] Performance considerations
-- [ ] Security considerations
+- [x] Prerequisites and requirements
+- [x] Installation alternatives (go get, docker)
+- [x] Configuration reference
+- [x] Best practices
+- [x] Performance considerations
+- [x] Security considerations
 
 #### 5.2.5 Code Comments
 
@@ -457,20 +457,23 @@ These items are tracked separately in the roadmap.
 
 This specification is considered complete when:
 
-- ⚠️ Most checkboxes in this document are marked complete (some require additional work)
+- ✅ Most checkboxes in this document are marked complete
 - ✅ `go test -race ./...` passes with zero warnings (race conditions fixed)
 - ✅ All public APIs have godoc documentation (core types documented)
-- ⚠️ ARCHITECTURE.md and TUTORIAL.md are published (pending)
-- ⚠️ Code review is approved (pending)
+- ✅ ARCHITECTURE.md and TUTORIAL.md are published
+- ⚠️ Code review is approved (pending external review)
 - ✅ All tests pass in CI pipeline (race detection added to Makefile)
-- ⚠️ Documentation is reviewed and approved (pending)
+- ⚠️ Documentation is reviewed and approved (pending external review)
 
 **Status Update:**
 - Race condition fixes: ✅ COMPLETE
 - Structured logging (core): ✅ COMPLETE  
-- Structured logging (injectors/validators): ⚠️ PARTIAL (requires additional work)
+- Structured logging (injectors): ✅ COMPLETE
+- Structured logging (validators): ✅ COMPLETE
 - API documentation: ✅ COMPLETE (core types)
-- Architecture/Tutorial docs: ⚠️ PENDING
+- Architecture documentation: ✅ COMPLETE (with Mermaid diagrams)
+- Tutorial documentation: ✅ COMPLETE (progressive examples)
+- README improvements: ✅ COMPLETE (all new sections added)
 
 ---
 

@@ -3,6 +3,7 @@ package injectors
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"math/rand"
 	"reflect"
 	"sync"
@@ -110,8 +111,10 @@ func (m *MonkeyPatchPanicInjector) Inject(ctx context.Context) error {
 
 		if err := ApplyPatch(&handle, func(args []reflect.Value) []reflect.Value {
 			if rng.Float64() < probability {
-				fmt.Printf("[CHAOS] Monkey patch panic triggered: %s (probability: %.2f)\n",
-					funcName, probability)
+				slog.Debug("monkey patch panic triggered",
+					slog.String("injector", m.name),
+					slog.String("function", funcName),
+					slog.Float64("probability", probability))
 				panic(panicMsg)
 			}
 
@@ -124,12 +127,17 @@ func (m *MonkeyPatchPanicInjector) Inject(ctx context.Context) error {
 		}
 
 		m.patchManager.AddPatch(handle)
-		fmt.Printf("[CHAOS] Monkey patch applied: %s (probability: %.2f)\n",
-			funcName, probability)
+		slog.Info("monkey patch applied",
+			slog.String("injector", m.name),
+			slog.String("function", funcName),
+			slog.Float64("probability", probability))
 	}
 
-	fmt.Printf("[CHAOS] Monkey patch panic injector started (%d targets patched)\n", len(m.targets))
-	fmt.Printf("[CHAOS] WARNING: Monkey patching requires -gcflags=all=-l for correct operation\n")
+	slog.Info("monkey patch panic injector started",
+		slog.String("injector", m.name),
+		slog.Int("targets_patched", len(m.targets)))
+	slog.Warn("monkey patching requires -gcflags=all=-l for correct operation",
+		slog.String("injector", m.name))
 
 	return nil
 }
@@ -149,7 +157,9 @@ func (m *MonkeyPatchPanicInjector) Stop(ctx context.Context) error {
 			return ""
 		})
 		m.stopped = true
-		fmt.Printf("[CHAOS] Monkey patch panic injector stopped (patches restored)\n")
+		slog.Info("monkey patch panic injector stopped",
+			slog.String("injector", m.name),
+			slog.String("status", "patches restored"))
 	}
 
 	return nil

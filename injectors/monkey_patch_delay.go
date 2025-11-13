@@ -3,6 +3,7 @@ package injectors
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"math/rand"
 	"reflect"
 	"sync"
@@ -135,8 +136,11 @@ func (m *MonkeyPatchDelayInjector) Inject(ctx context.Context) error {
 			if rng.Float64() < probability {
 				delay := m.calculateDelay(minDelay, maxDelay, rng)
 
-				fmt.Printf("[CHAOS] Monkey patch delay triggered: %s (delay: %v, probability: %.2f)\n",
-					funcName, delay, probability)
+				slog.Debug("monkey patch delay triggered",
+					slog.String("injector", m.name),
+					slog.String("function", funcName),
+					slog.Duration("delay", delay),
+					slog.Float64("probability", probability))
 
 				if delayBefore {
 					time.Sleep(delay)
@@ -165,12 +169,20 @@ func (m *MonkeyPatchDelayInjector) Inject(ctx context.Context) error {
 		}
 
 		m.patchManager.AddPatch(handle)
-		fmt.Printf("[CHAOS] Monkey patch applied: %s (probability: %.2f, delay: %v-%v, before: %v)\n",
-			funcName, probability, minDelay, maxDelay, delayBefore)
+		slog.Info("monkey patch applied",
+			slog.String("injector", m.name),
+			slog.String("function", funcName),
+			slog.Float64("probability", probability),
+			slog.Duration("min_delay", minDelay),
+			slog.Duration("max_delay", maxDelay),
+			slog.Bool("delay_before", delayBefore))
 	}
 
-	fmt.Printf("[CHAOS] Monkey patch delay injector started (%d targets patched)\n", len(m.targets))
-	fmt.Printf("[CHAOS] WARNING: Monkey patching requires -gcflags=all=-l for correct operation\n")
+	slog.Info("monkey patch delay injector started",
+		slog.String("injector", m.name),
+		slog.Int("targets_patched", len(m.targets)))
+	slog.Warn("monkey patching requires -gcflags=all=-l for correct operation",
+		slog.String("injector", m.name))
 
 	return nil
 }
@@ -188,7 +200,10 @@ func (m *MonkeyPatchDelayInjector) Stop(ctx context.Context) error {
 						delayCount = *countPtr
 					}
 					name := GetFuncName(target.Func, target.FuncName)
-					fmt.Printf("[CHAOS] Monkey patch restored: %s (delays applied: %d)\n", name, delayCount)
+					slog.Debug("monkey patch restored",
+						slog.String("injector", m.name),
+						slog.String("function", name),
+						slog.Int64("delays_applied", delayCount))
 
 					return name
 				}
@@ -197,7 +212,9 @@ func (m *MonkeyPatchDelayInjector) Stop(ctx context.Context) error {
 			return ""
 		})
 		m.stopped = true
-		fmt.Printf("[CHAOS] Monkey patch delay injector stopped (patches restored)\n")
+		slog.Info("monkey patch delay injector stopped",
+			slog.String("injector", m.name),
+			slog.String("status", "patches restored"))
 	}
 
 	return nil

@@ -3,6 +3,7 @@ package injectors
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"math/rand"
 	"sync"
 	"sync/atomic"
@@ -56,7 +57,9 @@ func (c *ContextCancellationInjector) Inject(ctx context.Context) error {
 	// Store deterministic random generator from context
 	c.rng = chaoskit.GetRand(ctx)
 
-	fmt.Printf("[CHAOS] Context cancellation injector started (probability: %.2f)\n", c.probability)
+	slog.Info("context cancellation injector started",
+		slog.String("injector", c.name),
+		slog.Float64("probability", c.probability))
 
 	return nil
 }
@@ -75,7 +78,9 @@ func (c *ContextCancellationInjector) Stop(ctx context.Context) error {
 		c.cancellations = make(map[context.Context]context.CancelFunc)
 
 		c.stopped = true
-		fmt.Printf("[CHAOS] Context cancellation injector stopped (total cancellations: %d)\n", atomic.LoadInt64(&c.cancelCount))
+		slog.Info("context cancellation injector stopped",
+			slog.String("injector", c.name),
+			slog.Int64("total_cancellations", atomic.LoadInt64(&c.cancelCount)))
 	}
 
 	return nil
@@ -118,7 +123,9 @@ func (c *ContextCancellationInjector) GetChaosContext(parent context.Context) (c
 			time.Sleep(10 * time.Millisecond)
 			cancel()
 
-			fmt.Printf("[CHAOS] Context cancellation triggered (probability: %.2f)\n", probability)
+			slog.Debug("context cancellation triggered",
+				slog.String("injector", c.name),
+				slog.Float64("probability", probability))
 
 			// Remove from tracking after cancellation
 			c.mu.Lock()

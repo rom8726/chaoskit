@@ -168,11 +168,11 @@ logger.Error("injector failed",
 
 #### 4.2.3 Update Injectors
 
-- [ ] Add `slog.Logger` field to injector structs
-- [ ] Log injection events with structured context
-- [ ] Log errors with appropriate severity
-- [ ] Add debug logging for troubleshooting
-- [ ] Include injector-specific metrics in logs
+- [x] Add `slog.Logger` field to injector structs (using slog.Default())
+- [x] Log injection events with structured context
+- [x] Log errors with appropriate severity
+- [x] Add debug logging for troubleshooting
+- [x] Include injector-specific metrics in logs
 
 **Code Locations:** All files in `injectors/` directory
 

@@ -2,6 +2,7 @@ package injectors
 
 import (
 	"fmt"
+	"log/slog"
 	"reflect"
 	"sync"
 )
@@ -172,7 +173,8 @@ func (pm *PatchManager) RestoreAllPatches(onRestore func(handle PatchHandle) str
 			}
 
 			if err := RestorePatch(&pm.patches[i]); err == nil && name != "" {
-				fmt.Printf("[CHAOS] Monkey patch restored: %s\n", name)
+				slog.Debug("monkey patch restored",
+					slog.String("function", name))
 			}
 		}
 	}

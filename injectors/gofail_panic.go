@@ -2,6 +2,7 @@ package injectors
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"sync"
@@ -53,11 +54,13 @@ func (g *GofailPanicInjector) Name() string { return g.name }
 func (g *GofailPanicInjector) Inject(ctx context.Context) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
+
 	if g.stopped {
 		return fmt.Errorf("injector already stopped")
 	}
+
 	// Probe runtime availability (distinguish missing build tag).
-	if err := enableFailpoint("chaoskit_runtime_probe", `panic("probe")`); err == ErrFailpointDisabled {
+	if err := enableFailpoint("chaoskit_runtime_probe", `panic("probe")`); errors.Is(err, ErrFailpointDisabled) {
 		return ErrFailpointDisabled
 	} else if err == nil {
 		_ = disableFailpoint("chaoskit_runtime_probe")

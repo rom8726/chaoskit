@@ -3,6 +3,7 @@ package injectors
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"math/rand"
 	"reflect"
 	"sync"
@@ -156,8 +157,11 @@ func (m *MonkeyPatchErrorInjector) Inject(ctx context.Context) error {
 					err = target.Error
 				}
 
-				fmt.Printf("[CHAOS] Monkey patch error triggered: %s (error: %v, probability: %.2f)\n",
-					funcName, err, probability)
+				slog.Debug("monkey patch error triggered",
+					slog.String("injector", m.name),
+					slog.String("function", funcName),
+					slog.String("error", err.Error()),
+					slog.Float64("probability", probability))
 
 				// Build return values: return zero values for all except last (error)
 				results := make([]reflect.Value, originalNumOut)
@@ -180,12 +184,18 @@ func (m *MonkeyPatchErrorInjector) Inject(ctx context.Context) error {
 		}
 
 		m.patchManager.AddPatch(handle)
-		fmt.Printf("[CHAOS] Monkey patch applied: %s (error: %v, probability: %.2f)\n",
-			funcName, m.getErrorDescription(target), probability)
+		slog.Debug("monkey patch applied",
+			slog.String("injector", m.name),
+			slog.String("function", funcName),
+			slog.String("error", m.getErrorDescription(target)),
+			slog.Float64("probability", probability))
 	}
 
-	fmt.Printf("[CHAOS] Monkey patch error injector started (%d targets patched)\n", len(m.targets))
-	fmt.Printf("[CHAOS] WARNING: Monkey patching requires -gcflags=all=-l for correct operation\n")
+	slog.Info("monkey patch error injector started",
+		slog.String("injector", m.name),
+		slog.Int("targets_patched", len(m.targets)))
+	slog.Warn("monkey patching requires -gcflags=all=-l for correct operation",
+		slog.String("injector", m.name))
 
 	return nil
 }
@@ -203,7 +213,10 @@ func (m *MonkeyPatchErrorInjector) Stop(ctx context.Context) error {
 						errorCount = *countPtr
 					}
 					name := GetFuncName(target.Func, target.FuncName)
-					fmt.Printf("[CHAOS] Monkey patch restored: %s (errors injected: %d)\n", name, errorCount)
+					slog.Debug("monkey patch restored",
+						slog.String("injector", m.name),
+						slog.String("function", name),
+						slog.Int64("errors_injected", errorCount))
 
 					return name
 				}
@@ -212,7 +225,9 @@ func (m *MonkeyPatchErrorInjector) Stop(ctx context.Context) error {
 			return ""
 		})
 		m.stopped = true
-		fmt.Printf("[CHAOS] Monkey patch error injector stopped (patches restored)\n")
+		slog.Info("monkey patch error injector stopped",
+			slog.String("injector", m.name),
+			slog.String("status", "patches restored"))
 	}
 
 	return nil

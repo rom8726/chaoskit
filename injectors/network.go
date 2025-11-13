@@ -3,6 +3,7 @@ package injectors
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -78,7 +79,11 @@ func (t *ToxiProxyLatencyInjector) Inject(ctx context.Context) error {
 		return fmt.Errorf("failed to add latency toxic: %w", err)
 	}
 
-	fmt.Printf("[TOXIPROXY] Latency injected on %s: %dms ±%dms\n", t.proxyName, t.latency, t.jitter)
+	slog.Info("toxiproxy latency injected",
+		slog.String("injector", t.name),
+		slog.String("proxy", t.proxyName),
+		slog.Int("latency_ms", t.latency),
+		slog.Int("jitter_ms", t.jitter))
 
 	return nil
 }
@@ -96,7 +101,9 @@ func (t *ToxiProxyLatencyInjector) Stop(ctx context.Context) error {
 	}
 
 	t.stopped = true
-	fmt.Printf("[TOXIPROXY] Latency removed from %s\n", t.proxyName)
+	slog.Info("toxiproxy latency removed",
+		slog.String("injector", t.name),
+		slog.String("proxy", t.proxyName))
 
 	return nil
 }
@@ -149,7 +156,10 @@ func (t *ToxiProxyBandwidthInjector) Inject(ctx context.Context) error {
 		return fmt.Errorf("failed to add bandwidth toxic: %w", err)
 	}
 
-	fmt.Printf("[TOXIPROXY] Bandwidth limited on %s: %d KB/s\n", t.proxyName, t.rate)
+	slog.Info("toxiproxy bandwidth limited",
+		slog.String("injector", t.name),
+		slog.String("proxy", t.proxyName),
+		slog.Int64("rate_kbps", t.rate))
 
 	return nil
 }
@@ -167,7 +177,9 @@ func (t *ToxiProxyBandwidthInjector) Stop(ctx context.Context) error {
 	}
 
 	t.stopped = true
-	fmt.Printf("[TOXIPROXY] Bandwidth limit removed from %s\n", t.proxyName)
+	slog.Info("toxiproxy bandwidth limit removed",
+		slog.String("injector", t.name),
+		slog.String("proxy", t.proxyName))
 
 	return nil
 }
@@ -220,7 +232,10 @@ func (t *ToxiProxyTimeoutInjector) Inject(ctx context.Context) error {
 		return fmt.Errorf("failed to add timeout toxic: %w", err)
 	}
 
-	fmt.Printf("[TOXIPROXY] Timeout injected on %s: %dms\n", t.proxyName, t.timeout)
+	slog.Info("toxiproxy timeout injected",
+		slog.String("injector", t.name),
+		slog.String("proxy", t.proxyName),
+		slog.Int("timeout_ms", t.timeout))
 
 	return nil
 }
@@ -238,7 +253,9 @@ func (t *ToxiProxyTimeoutInjector) Stop(ctx context.Context) error {
 	}
 
 	t.stopped = true
-	fmt.Printf("[TOXIPROXY] Timeout removed from %s\n", t.proxyName)
+	slog.Info("toxiproxy timeout removed",
+		slog.String("injector", t.name),
+		slog.String("proxy", t.proxyName))
 
 	return nil
 }
@@ -302,8 +319,12 @@ func (t *ToxiProxySlicerInjector) Inject(ctx context.Context) error {
 		return fmt.Errorf("failed to add slicer toxic: %w", err)
 	}
 
-	fmt.Printf("[TOXIPROXY] Slicer injected on %s: avg=%d bytes, var=%d bytes, delay=%dµs\n",
-		t.proxyName, t.averageSize, t.sizeVariation, t.delay)
+	slog.Info("toxiproxy slicer injected",
+		slog.String("injector", t.name),
+		slog.String("proxy", t.proxyName),
+		slog.Int("average_size_bytes", t.averageSize),
+		slog.Int("size_variation_bytes", t.sizeVariation),
+		slog.Int("delay_us", t.delay))
 
 	return nil
 }
@@ -321,7 +342,9 @@ func (t *ToxiProxySlicerInjector) Stop(ctx context.Context) error {
 	}
 
 	t.stopped = true
-	fmt.Printf("[TOXIPROXY] Slicer removed from %s\n", t.proxyName)
+	slog.Info("toxiproxy slicer removed",
+		slog.String("injector", t.name),
+		slog.String("proxy", t.proxyName))
 
 	return nil
 }
@@ -366,7 +389,10 @@ func (m *ToxiProxyManager) CreateProxy(cfg ProxyConfig) error {
 	}
 
 	m.proxies[cfg.Name] = proxy
-	fmt.Printf("[TOXIPROXY] Proxy created: %s (%s -> %s)\n", cfg.Name, cfg.Listen, cfg.Upstream)
+	slog.Info("toxiproxy proxy created",
+		slog.String("name", cfg.Name),
+		slog.String("listen", cfg.Listen),
+		slog.String("upstream", cfg.Upstream))
 
 	return nil
 }
@@ -386,7 +412,8 @@ func (m *ToxiProxyManager) DeleteProxy(name string) error {
 	}
 
 	delete(m.proxies, name)
-	fmt.Printf("[TOXIPROXY] Proxy deleted: %s\n", name)
+	slog.Info("toxiproxy proxy deleted",
+		slog.String("name", name))
 
 	return nil
 }
@@ -414,7 +441,8 @@ func (m *ToxiProxyManager) CleanupAll() error {
 		if err := proxy.Delete(); err != nil {
 			errs = append(errs, fmt.Errorf("failed to delete proxy %s: %w", name, err))
 		} else {
-			fmt.Printf("[TOXIPROXY] Proxy cleaned up: %s\n", name)
+			slog.Debug("toxiproxy proxy cleaned up",
+				slog.String("name", name))
 		}
 	}
 

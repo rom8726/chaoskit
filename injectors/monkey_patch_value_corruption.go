@@ -3,6 +3,7 @@ package injectors
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"math/rand"
 	"reflect"
 	"sync"
@@ -175,8 +176,10 @@ func (m *MonkeyPatchValueCorruptionInjector) Inject(ctx context.Context) error {
 				// Call corrupt function with original results
 				corruptedResults := corruptCopy.Call(originalResults)
 
-				fmt.Printf("[CHAOS] Monkey patch value corruption triggered: %s (probability: %.2f)\n",
-					funcName, probability)
+				slog.Debug("monkey patch value corruption triggered",
+					slog.String("injector", m.name),
+					slog.String("function", funcName),
+					slog.Float64("probability", probability))
 
 				return corruptedResults
 			}
@@ -191,12 +194,17 @@ func (m *MonkeyPatchValueCorruptionInjector) Inject(ctx context.Context) error {
 		}
 
 		m.patchManager.AddPatch(handle)
-		fmt.Printf("[CHAOS] Monkey patch applied: %s (corruption probability: %.2f)\n",
-			funcName, probability)
+		slog.Debug("monkey patch applied",
+			slog.String("injector", m.name),
+			slog.String("function", funcName),
+			slog.Float64("corruption_probability", probability))
 	}
 
-	fmt.Printf("[CHAOS] Monkey patch value corruption injector started (%d targets patched)\n", len(m.targets))
-	fmt.Printf("[CHAOS] WARNING: Monkey patching requires -gcflags=all=-l for correct operation\n")
+	slog.Info("monkey patch value corruption injector started",
+		slog.String("injector", m.name),
+		slog.Int("targets_patched", len(m.targets)))
+	slog.Warn("monkey patching requires -gcflags=all=-l for correct operation",
+		slog.String("injector", m.name))
 
 	return nil
 }
@@ -214,7 +222,10 @@ func (m *MonkeyPatchValueCorruptionInjector) Stop(ctx context.Context) error {
 						corruptionCount = *countPtr
 					}
 					name := GetFuncName(target.Func, target.FuncName)
-					fmt.Printf("[CHAOS] Monkey patch restored: %s (corruptions applied: %d)\n", name, corruptionCount)
+					slog.Debug("monkey patch restored",
+						slog.String("injector", m.name),
+						slog.String("function", name),
+						slog.Int64("corruptions_applied", corruptionCount))
 
 					return name
 				}
@@ -223,7 +234,9 @@ func (m *MonkeyPatchValueCorruptionInjector) Stop(ctx context.Context) error {
 			return ""
 		})
 		m.stopped = true
-		fmt.Printf("[CHAOS] Monkey patch value corruption injector stopped (patches restored)\n")
+		slog.Info("monkey patch value corruption injector stopped",
+			slog.String("injector", m.name),
+			slog.String("status", "patches restored"))
 	}
 
 	return nil

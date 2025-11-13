@@ -452,7 +452,8 @@ func (e *Executor) buildChaosContext(injectors []Injector) *ChaosContext {
 			chaos.delayFunc = func() bool {
 				delay, ok := delayProvider.GetChaosDelay()
 				if ok && delay > 0 {
-					fmt.Printf("[CHAOS] Delay injected in user code: %v\n", delay)
+					slog.Debug("delay injected in user code",
+						slog.Duration("delay", delay))
 					time.Sleep(delay)
 
 					return true
@@ -465,8 +466,8 @@ func (e *Executor) buildChaosContext(injectors []Injector) *ChaosContext {
 		if panicProvider, ok := inj.(ChaosPanicProvider); ok {
 			chaos.panicFunc = func() bool {
 				if panicProvider.ShouldChaosPanic() {
-					fmt.Printf("[CHAOS] Panic triggered in user code (probability: %.2f)\n",
-						panicProvider.GetPanicProbability())
+					slog.Debug("panic triggered in user code",
+						slog.Float64("probability", panicProvider.GetPanicProbability()))
 
 					return true
 				}
@@ -485,7 +486,10 @@ func (e *Executor) buildChaosContext(injectors []Injector) *ChaosContext {
 
 				// Apply latency if configured
 				if latency, hasLatency := networkProvider.GetNetworkLatency(host, port); hasLatency && latency > 0 {
-					fmt.Printf("[CHAOS] Network latency injected: %s:%d -> %v\n", host, port, latency)
+					slog.Debug("network latency injected",
+						slog.String("host", host),
+						slog.Int("port", port),
+						slog.Duration("latency", latency))
 					time.Sleep(latency)
 
 					return true
@@ -493,7 +497,9 @@ func (e *Executor) buildChaosContext(injectors []Injector) *ChaosContext {
 
 				// Check for connection drop
 				if networkProvider.ShouldDropConnection(host, port) {
-					fmt.Printf("[CHAOS] Network connection drop simulated: %s:%d\n", host, port)
+					slog.Debug("network connection drop simulated",
+						slog.String("host", host),
+						slog.Int("port", port))
 
 					return true
 				}

@@ -3,6 +3,7 @@ package injectors
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sync"
 
 	"github.com/rom8726/chaoskit"
@@ -50,7 +51,9 @@ func (m *MemoryPressureInjector) Inject(ctx context.Context) error {
 		m.allocated = append(m.allocated, chunk)
 	}
 
-	fmt.Printf("[CHAOS] Memory pressure injected: %d MB allocated\n", m.sizeMB)
+	slog.Info("memory pressure injected",
+		slog.String("injector", m.name),
+		slog.Int("size_mb", m.sizeMB))
 
 	return nil
 }

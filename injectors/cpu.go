@@ -3,6 +3,7 @@ package injectors
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sync"
 
 	"github.com/rom8726/chaoskit"
@@ -48,7 +49,9 @@ func (c *CPUStressInjector) Inject(ctx context.Context) error {
 		}(i)
 	}
 
-	fmt.Printf("[CHAOS] CPU stress started with %d workers\n", c.workers)
+	slog.Info("CPU stress started",
+		slog.String("injector", c.name),
+		slog.Int("workers", c.workers))
 
 	return nil
 }

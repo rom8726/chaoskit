@@ -3,6 +3,7 @@ package injectors
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"math/rand"
 	"reflect"
 	"sync"
@@ -155,8 +156,11 @@ func (m *MonkeyPatchTimeoutInjector) Inject(ctx context.Context) error {
 				copy(newArgs, args)
 				newArgs[0] = reflect.ValueOf(timeoutCtx)
 
-				fmt.Printf("[CHAOS] Monkey patch timeout triggered: %s (timeout: %v, probability: %.2f)\n",
-					funcName, timeout, probability)
+				slog.Debug("monkey patch timeout triggered",
+					slog.String("injector", m.name),
+					slog.String("function", funcName),
+					slog.Duration("timeout", timeout),
+					slog.Float64("probability", probability))
 
 				// Call original function with timeout context in a goroutine
 				done := make(chan []reflect.Value, 1)
@@ -188,7 +192,10 @@ func (m *MonkeyPatchTimeoutInjector) Inject(ctx context.Context) error {
 							}
 						}
 
-						fmt.Printf("[CHAOS] Timeout injected for %s: %v\n", funcName, returnError)
+						slog.Debug("timeout injected",
+							slog.String("injector", m.name),
+							slog.String("function", funcName),
+							slog.String("error", returnError.Error()))
 					}
 				case <-timeoutCtx.Done():
 					// Timeout occurred before function completed
@@ -196,7 +203,10 @@ func (m *MonkeyPatchTimeoutInjector) Inject(ctx context.Context) error {
 					*m.timeoutCounts[target.Func]++
 					m.mu.Unlock()
 
-					fmt.Printf("[CHAOS] Timeout occurred for %s: %v\n", funcName, returnError)
+					slog.Debug("timeout occurred",
+						slog.String("injector", m.name),
+						slog.String("function", funcName),
+						slog.String("error", returnError.Error()))
 
 					// Build return values: return zero values for all except error
 					results = make([]reflect.Value, originalNumOut)
@@ -220,12 +230,18 @@ func (m *MonkeyPatchTimeoutInjector) Inject(ctx context.Context) error {
 		}
 
 		m.patchManager.AddPatch(handle)
-		fmt.Printf("[CHAOS] Monkey patch applied: %s (timeout: %v, probability: %.2f)\n",
-			funcName, timeout, probability)
+		slog.Debug("monkey patch applied",
+			slog.String("injector", m.name),
+			slog.String("function", funcName),
+			slog.Duration("timeout", timeout),
+			slog.Float64("probability", probability))
 	}
 
-	fmt.Printf("[CHAOS] Monkey patch timeout injector started (%d targets patched)\n", len(m.targets))
-	fmt.Printf("[CHAOS] WARNING: Monkey patching requires -gcflags=all=-l for correct operation\n")
+	slog.Info("monkey patch timeout injector started",
+		slog.String("injector", m.name),
+		slog.Int("targets_patched", len(m.targets)))
+	slog.Warn("monkey patching requires -gcflags=all=-l for correct operation",
+		slog.String("injector", m.name))
 
 	return nil
 }
@@ -243,7 +259,10 @@ func (m *MonkeyPatchTimeoutInjector) Stop(ctx context.Context) error {
 						timeoutCount = *countPtr
 					}
 					name := GetFuncName(target.Func, target.FuncName)
-					fmt.Printf("[CHAOS] Monkey patch restored: %s (timeouts applied: %d)\n", name, timeoutCount)
+					slog.Debug("monkey patch restored",
+						slog.String("injector", m.name),
+						slog.String("function", name),
+						slog.Int64("timeouts_applied", timeoutCount))
 
 					return name
 				}
@@ -252,7 +271,9 @@ func (m *MonkeyPatchTimeoutInjector) Stop(ctx context.Context) error {
 			return ""
 		})
 		m.stopped = true
-		fmt.Printf("[CHAOS] Monkey patch timeout injector stopped (patches restored)\n")
+		slog.Info("monkey patch timeout injector stopped",
+			slog.String("injector", m.name),
+			slog.String("status", "patches restored"))
 	}
 
 	return nil

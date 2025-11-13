@@ -33,7 +33,7 @@ func (m *MemoryLimitValidator) Validate(ctx context.Context, target chaoskit.Tar
 
 	// Warn if approaching limit (80% threshold)
 	if memStats.Alloc > m.limitBytes*9/10 {
-		slog.Warn("memory usage approaching limit",
+		chaoskit.GetLogger(ctx).Warn("memory usage approaching limit",
 			slog.String("validator", m.name),
 			slog.Uint64("allocated_bytes", memStats.Alloc),
 			slog.Uint64("limit_bytes", m.limitBytes))
@@ -42,7 +42,7 @@ func (m *MemoryLimitValidator) Validate(ctx context.Context, target chaoskit.Tar
 	if memStats.Alloc > m.limitBytes {
 		err := fmt.Errorf("memory limit exceeded: %d bytes (limit: %d bytes)",
 			memStats.Alloc, m.limitBytes)
-		slog.Error("memory limit validator failed",
+		chaoskit.GetLogger(ctx).Error("memory limit validator failed",
 			slog.String("validator", m.name),
 			slog.Uint64("allocated_bytes", memStats.Alloc),
 			slog.Uint64("limit_bytes", m.limitBytes),
@@ -51,7 +51,7 @@ func (m *MemoryLimitValidator) Validate(ctx context.Context, target chaoskit.Tar
 		return err
 	}
 
-	slog.Debug("memory limit validator passed",
+	chaoskit.GetLogger(ctx).Debug("memory limit validator passed",
 		slog.String("validator", m.name),
 		slog.Uint64("allocated_bytes", memStats.Alloc),
 		slog.Uint64("limit_bytes", m.limitBytes))

@@ -39,6 +39,7 @@ import (
 
 // recorderKey is a private type for context key
 type recorderKey struct{}
+type loggerKey struct{}
 
 // Target represents the system under test.
 // Implement this interface to define the system that will be subject to chaos testing.
@@ -137,7 +138,7 @@ type ChaosProvider interface {
 // ChaosDelayProvider provides delay injection capability
 type ChaosDelayProvider interface {
 	Injector
-	GetChaosDelay() (time.Duration, bool)
+	GetChaosDelay(ctx context.Context) (time.Duration, bool)
 }
 
 // ChaosPanicProvider provides panic injection capability
@@ -209,7 +210,7 @@ type Logger interface {
 
 // PanicRecorder is implemented by validators that can record panics during execution.
 type PanicRecorder interface {
-	RecordPanic()
+	RecordPanic(ctx context.Context)
 }
 
 // RecursionRecorder is implemented by validators that can record recursion/rollback depth.
@@ -219,7 +220,7 @@ type RecursionRecorder interface {
 
 // EventRecorder provides a unified interface for recording runtime events from steps.
 type EventRecorder interface {
-	RecordPanic()
+	RecordPanic(ctx context.Context)
 	RecordRecursionDepth(depth int)
 }
 
@@ -232,7 +233,7 @@ func AttachRecorder(ctx context.Context, r EventRecorder) context.Context {
 func RecordPanic(ctx context.Context) {
 	if v := ctx.Value(recorderKey{}); v != nil {
 		if r, ok := v.(EventRecorder); ok {
-			r.RecordPanic()
+			r.RecordPanic(ctx)
 		}
 	}
 }
@@ -244,6 +245,21 @@ func RecordRecursionDepth(ctx context.Context, depth int) {
 			r.RecordRecursionDepth(depth)
 		}
 	}
+}
+
+// AttachLogger attaches a logger to context.
+func AttachLogger(ctx context.Context, logger *slog.Logger) context.Context {
+	return context.WithValue(ctx, loggerKey{}, logger)
+}
+
+// GetLogger retrieves logger from context, or returns slog.Default() if not found.
+func GetLogger(ctx context.Context) *slog.Logger {
+	if v := ctx.Value(loggerKey{}); v != nil {
+		if logger, ok := v.(*slog.Logger); ok {
+			return logger
+		}
+	}
+	return slog.Default()
 }
 
 // Run executes a scenario with default settings.

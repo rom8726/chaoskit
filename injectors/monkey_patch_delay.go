@@ -136,7 +136,7 @@ func (m *MonkeyPatchDelayInjector) Inject(ctx context.Context) error {
 			if rng.Float64() < probability {
 				delay := m.calculateDelay(minDelay, maxDelay, rng)
 
-				slog.Debug("monkey patch delay triggered",
+				chaoskit.GetLogger(ctx).Debug("monkey patch delay triggered",
 					slog.String("injector", m.name),
 					slog.String("function", funcName),
 					slog.Duration("delay", delay),
@@ -169,7 +169,7 @@ func (m *MonkeyPatchDelayInjector) Inject(ctx context.Context) error {
 		}
 
 		m.patchManager.AddPatch(handle)
-		slog.Info("monkey patch applied",
+		chaoskit.GetLogger(ctx).Info("monkey patch applied",
 			slog.String("injector", m.name),
 			slog.String("function", funcName),
 			slog.Float64("probability", probability),
@@ -178,10 +178,10 @@ func (m *MonkeyPatchDelayInjector) Inject(ctx context.Context) error {
 			slog.Bool("delay_before", delayBefore))
 	}
 
-	slog.Info("monkey patch delay injector started",
+	chaoskit.GetLogger(ctx).Info("monkey patch delay injector started",
 		slog.String("injector", m.name),
 		slog.Int("targets_patched", len(m.targets)))
-	slog.Warn("monkey patching requires -gcflags=all=-l for correct operation",
+	chaoskit.GetLogger(ctx).Warn("monkey patching requires -gcflags=all=-l for correct operation",
 		slog.String("injector", m.name))
 
 	return nil
@@ -192,7 +192,7 @@ func (m *MonkeyPatchDelayInjector) Stop(ctx context.Context) error {
 	defer m.mu.Unlock()
 
 	if !m.stopped {
-		m.patchManager.RestoreAllPatches(func(handle PatchHandle) string {
+		m.patchManager.RestoreAllPatches(ctx, func(handle PatchHandle) string {
 			for _, target := range m.targets {
 				if target.Func == handle.Func {
 					delayCount := int64(0)
@@ -200,7 +200,7 @@ func (m *MonkeyPatchDelayInjector) Stop(ctx context.Context) error {
 						delayCount = *countPtr
 					}
 					name := GetFuncName(target.Func, target.FuncName)
-					slog.Debug("monkey patch restored",
+					chaoskit.GetLogger(ctx).Debug("monkey patch restored",
 						slog.String("injector", m.name),
 						slog.String("function", name),
 						slog.Int64("delays_applied", delayCount))
@@ -212,7 +212,7 @@ func (m *MonkeyPatchDelayInjector) Stop(ctx context.Context) error {
 			return ""
 		})
 		m.stopped = true
-		slog.Info("monkey patch delay injector stopped",
+		chaoskit.GetLogger(ctx).Info("monkey patch delay injector stopped",
 			slog.String("injector", m.name),
 			slog.String("status", "patches restored"))
 	}

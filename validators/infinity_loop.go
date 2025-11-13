@@ -39,7 +39,7 @@ func (i *InfiniteLoopValidator) Validate(ctx context.Context, target chaoskit.Ta
 
 	// Warn if approaching timeout (80% threshold)
 	if elapsed > i.timeout*9/10 {
-		slog.Warn("possible infinite loop approaching timeout",
+		chaoskit.GetLogger(ctx).Warn("possible infinite loop approaching timeout",
 			slog.String("validator", i.name),
 			slog.Duration("elapsed", elapsed),
 			slog.Duration("timeout", i.timeout))
@@ -47,7 +47,7 @@ func (i *InfiniteLoopValidator) Validate(ctx context.Context, target chaoskit.Ta
 
 	if elapsed > i.timeout {
 		err := fmt.Errorf("possible infinite loop detected: no progress for %v", elapsed)
-		slog.Error("infinite loop validator failed",
+		chaoskit.GetLogger(ctx).Error("infinite loop validator failed",
 			slog.String("validator", i.name),
 			slog.Duration("elapsed", elapsed),
 			slog.Duration("timeout", i.timeout),
@@ -56,7 +56,7 @@ func (i *InfiniteLoopValidator) Validate(ctx context.Context, target chaoskit.Ta
 		return err
 	}
 
-	slog.Debug("infinite loop validator passed",
+	chaoskit.GetLogger(ctx).Debug("infinite loop validator passed",
 		slog.String("validator", i.name),
 		slog.Duration("elapsed", elapsed))
 

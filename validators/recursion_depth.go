@@ -41,14 +41,14 @@ func (r *RecursionDepthValidator) Validate(ctx context.Context, target chaoskit.
 		}
 		// Warn if approaching limit (80% threshold)
 		if depth > int(float64(r.maxDepth)*0.8) {
-			slog.Warn("recursion depth approaching limit",
+			chaoskit.GetLogger(ctx).Warn("recursion depth approaching limit",
 				slog.String("validator", r.name),
 				slog.Int("current_depth", depth),
 				slog.Int("limit", r.maxDepth))
 		}
 		if depth > r.maxDepth {
 			err := fmt.Errorf("recursion depth exceeded: %d (limit: %d)", depth, r.maxDepth)
-			slog.Error("recursion depth validator failed",
+			chaoskit.GetLogger(ctx).Error("recursion depth validator failed",
 				slog.String("validator", r.name),
 				slog.Int("depth", depth),
 				slog.Int("limit", r.maxDepth),
@@ -59,7 +59,7 @@ func (r *RecursionDepthValidator) Validate(ctx context.Context, target chaoskit.
 	}
 
 	if len(r.depths) > 0 {
-		slog.Debug("recursion depth validator passed",
+		chaoskit.GetLogger(ctx).Debug("recursion depth validator passed",
 			slog.String("validator", r.name),
 			slog.Int("max_observed_depth", maxObserved),
 			slog.Int("limit", r.maxDepth),

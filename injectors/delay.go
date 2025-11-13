@@ -106,7 +106,7 @@ func (d *DelayInjector) Inject(ctx context.Context) error {
 	d.rng = chaoskit.GetRand(ctx)
 
 	if d.mode == IntervalMode {
-		slog.Info("delay injector started",
+		chaoskit.GetLogger(ctx).Info("delay injector started",
 			slog.String("injector", d.name),
 			slog.String("mode", "interval"),
 			slog.Duration("min_delay", d.minDelay),
@@ -115,7 +115,7 @@ func (d *DelayInjector) Inject(ctx context.Context) error {
 		// Start a background goroutine that periodically injects delays
 		go d.delayLoop(ctx)
 	} else {
-		slog.Info("delay injector started",
+		chaoskit.GetLogger(ctx).Info("delay injector started",
 			slog.String("injector", d.name),
 			slog.String("mode", "probability"),
 			slog.Duration("min_delay", d.minDelay),
@@ -141,7 +141,7 @@ func (d *DelayInjector) delayLoop(ctx context.Context) {
 			// This will make all MaybeDelay() calls block and apply this delay
 			delay := d.calculateDelay()
 			if delay > 0 {
-				slog.Debug("interval-based delay triggered",
+				chaoskit.GetLogger(ctx).Debug("interval-based delay triggered",
 					slog.String("injector", d.name),
 					slog.Duration("delay", delay))
 
@@ -158,7 +158,7 @@ func (d *DelayInjector) delayLoop(ctx context.Context) {
 				d.delayMu.Lock()
 				if d.activeDelay > 0 {
 					d.activeDelay = 0
-					slog.Debug("interval delay window closed",
+					chaoskit.GetLogger(ctx).Debug("interval delay window closed",
 						slog.String("injector", d.name))
 				}
 				d.delayMu.Unlock()
@@ -196,7 +196,7 @@ func (d *DelayInjector) Stop(ctx context.Context) error {
 	if !d.stopped {
 		close(d.stopCh)
 		d.stopped = true
-		slog.Info("delay injector stopped",
+		chaoskit.GetLogger(ctx).Info("delay injector stopped",
 			slog.String("injector", d.name),
 			slog.Int64("total_delays", d.delayCount))
 	}
@@ -225,7 +225,7 @@ func (d *DelayInjector) BeforeStep(ctx context.Context) error {
 		count := d.delayCount
 		d.mu.Unlock()
 
-		slog.Debug("injecting delay before step",
+		chaoskit.GetLogger(ctx).Debug("injecting delay before step",
 			slog.String("injector", d.name),
 			slog.Int64("step_count", count),
 			slog.Duration("delay", delay))
@@ -243,7 +243,7 @@ func (d *DelayInjector) AfterStep(ctx context.Context, err error) error {
 // GetChaosDelay returns a delay for chaos context
 // In ProbabilityMode: returns delay based on random probability
 // In IntervalMode: blocks until background goroutine signals a delay should be applied
-func (d *DelayInjector) GetChaosDelay() (time.Duration, bool) {
+func (d *DelayInjector) GetChaosDelay(ctx context.Context) (time.Duration, bool) {
 	d.mu.Lock()
 	stopped := d.stopped
 	mode := d.mode
@@ -269,7 +269,7 @@ func (d *DelayInjector) GetChaosDelay() (time.Duration, bool) {
 			d.delayCount++
 			d.mu.Unlock()
 
-			slog.Debug("interval delay applied in user code",
+			chaoskit.GetLogger(ctx).Debug("interval delay applied in user code",
 				slog.String("injector", d.name),
 				slog.Duration("delay", delay))
 
@@ -325,7 +325,7 @@ func (d *DelayInjector) GetChaosDelay() (time.Duration, bool) {
 		select {
 		case delay := <-delayReceived:
 			if delay > 0 {
-				slog.Debug("interval delay applied in user code",
+				chaoskit.GetLogger(ctx).Debug("interval delay applied in user code",
 					slog.String("injector", d.name),
 					slog.Duration("delay", delay))
 

@@ -61,7 +61,7 @@ func (p *PanicInjector) Inject(ctx context.Context) error {
 				p.mu.Unlock()
 				if rng.Float64() < prob {
 					// TODO: use gofail
-					slog.Debug("panic injected",
+					chaoskit.GetLogger(ctx).Debug("panic injected",
 						slog.String("injector", p.name),
 						slog.Float64("probability", prob))
 				}
@@ -103,7 +103,7 @@ func (p *PanicInjector) BeforeStep(ctx context.Context) error {
 	}
 
 	if rng.Float64() < p.probability {
-		slog.Debug("injecting panic",
+		chaoskit.GetLogger(ctx).Debug("injecting panic",
 			slog.String("injector", p.name),
 			slog.Float64("probability", p.probability))
 		panic("chaos: injected panic")

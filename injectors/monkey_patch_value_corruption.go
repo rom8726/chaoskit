@@ -176,7 +176,7 @@ func (m *MonkeyPatchValueCorruptionInjector) Inject(ctx context.Context) error {
 				// Call corrupt function with original results
 				corruptedResults := corruptCopy.Call(originalResults)
 
-				slog.Debug("monkey patch value corruption triggered",
+				chaoskit.GetLogger(ctx).Debug("monkey patch value corruption triggered",
 					slog.String("injector", m.name),
 					slog.String("function", funcName),
 					slog.Float64("probability", probability))
@@ -194,16 +194,16 @@ func (m *MonkeyPatchValueCorruptionInjector) Inject(ctx context.Context) error {
 		}
 
 		m.patchManager.AddPatch(handle)
-		slog.Debug("monkey patch applied",
+		chaoskit.GetLogger(ctx).Debug("monkey patch applied",
 			slog.String("injector", m.name),
 			slog.String("function", funcName),
 			slog.Float64("corruption_probability", probability))
 	}
 
-	slog.Info("monkey patch value corruption injector started",
+	chaoskit.GetLogger(ctx).Info("monkey patch value corruption injector started",
 		slog.String("injector", m.name),
 		slog.Int("targets_patched", len(m.targets)))
-	slog.Warn("monkey patching requires -gcflags=all=-l for correct operation",
+	chaoskit.GetLogger(ctx).Warn("monkey patching requires -gcflags=all=-l for correct operation",
 		slog.String("injector", m.name))
 
 	return nil
@@ -214,7 +214,7 @@ func (m *MonkeyPatchValueCorruptionInjector) Stop(ctx context.Context) error {
 	defer m.mu.Unlock()
 
 	if !m.stopped {
-		m.patchManager.RestoreAllPatches(func(handle PatchHandle) string {
+		m.patchManager.RestoreAllPatches(ctx, func(handle PatchHandle) string {
 			for _, target := range m.targets {
 				if target.Func == handle.Func {
 					corruptionCount := int64(0)
@@ -222,7 +222,7 @@ func (m *MonkeyPatchValueCorruptionInjector) Stop(ctx context.Context) error {
 						corruptionCount = *countPtr
 					}
 					name := GetFuncName(target.Func, target.FuncName)
-					slog.Debug("monkey patch restored",
+					chaoskit.GetLogger(ctx).Debug("monkey patch restored",
 						slog.String("injector", m.name),
 						slog.String("function", name),
 						slog.Int64("corruptions_applied", corruptionCount))
@@ -234,7 +234,7 @@ func (m *MonkeyPatchValueCorruptionInjector) Stop(ctx context.Context) error {
 			return ""
 		})
 		m.stopped = true
-		slog.Info("monkey patch value corruption injector stopped",
+		chaoskit.GetLogger(ctx).Info("monkey patch value corruption injector stopped",
 			slog.String("injector", m.name),
 			slog.String("status", "patches restored"))
 	}

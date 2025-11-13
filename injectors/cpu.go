@@ -49,7 +49,7 @@ func (c *CPUStressInjector) Inject(ctx context.Context) error {
 		}(i)
 	}
 
-	slog.Info("CPU stress started",
+	chaoskit.GetLogger(ctx).Info("CPU stress started",
 		slog.String("injector", c.name),
 		slog.Int("workers", c.workers))
 

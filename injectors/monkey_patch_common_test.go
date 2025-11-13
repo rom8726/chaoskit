@@ -1,6 +1,7 @@
 package injectors
 
 import (
+	"context"
 	"reflect"
 	"testing"
 )
@@ -220,7 +221,7 @@ func TestPatchManager(t *testing.T) {
 	}
 
 	// Restore all
-	pm.RestoreAllPatches(func(handle PatchHandle) string {
+	pm.RestoreAllPatches(context.Background(), func(handle PatchHandle) string {
 		return "test"
 	})
 

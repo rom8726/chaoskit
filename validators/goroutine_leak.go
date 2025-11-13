@@ -48,7 +48,7 @@ func (g *GoroutineLeakValidator) Validate(ctx context.Context, target chaoskit.T
 	if !g.initialized {
 		g.baselineGCount = current
 		g.initialized = true
-		slog.Debug("goroutine validator initialized",
+		chaoskit.GetLogger(ctx).Debug("goroutine validator initialized",
 			slog.String("validator", g.name),
 			slog.Int("baseline_goroutines", current),
 			slog.Int("max_goroutines", g.maxGoroutines))
@@ -58,7 +58,7 @@ func (g *GoroutineLeakValidator) Validate(ctx context.Context, target chaoskit.T
 
 	// Warn if approaching limit (80% threshold)
 	if current > int(float64(g.maxGoroutines)*0.8) {
-		slog.Warn("goroutine count approaching limit",
+		chaoskit.GetLogger(ctx).Warn("goroutine count approaching limit",
 			slog.String("validator", g.name),
 			slog.Int("current", current),
 			slog.Int("limit", g.maxGoroutines),
@@ -68,7 +68,7 @@ func (g *GoroutineLeakValidator) Validate(ctx context.Context, target chaoskit.T
 	if current > g.maxGoroutines {
 		err := fmt.Errorf("goroutine leak detected: %d goroutines (limit: %d, baseline: %d)",
 			current, g.maxGoroutines, g.baselineGCount)
-		slog.Error("goroutine validator failed",
+		chaoskit.GetLogger(ctx).Error("goroutine validator failed",
 			slog.String("validator", g.name),
 			slog.Int("current", current),
 			slog.Int("limit", g.maxGoroutines),
@@ -78,7 +78,7 @@ func (g *GoroutineLeakValidator) Validate(ctx context.Context, target chaoskit.T
 		return err
 	}
 
-	slog.Debug("goroutine validator passed",
+	chaoskit.GetLogger(ctx).Debug("goroutine validator passed",
 		slog.String("validator", g.name),
 		slog.Int("current", current),
 		slog.Int("limit", g.maxGoroutines))

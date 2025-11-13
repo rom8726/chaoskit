@@ -111,7 +111,7 @@ func (m *MonkeyPatchPanicInjector) Inject(ctx context.Context) error {
 
 		if err := ApplyPatch(&handle, func(args []reflect.Value) []reflect.Value {
 			if rng.Float64() < probability {
-				slog.Debug("monkey patch panic triggered",
+				chaoskit.GetLogger(ctx).Debug("monkey patch panic triggered",
 					slog.String("injector", m.name),
 					slog.String("function", funcName),
 					slog.Float64("probability", probability))
@@ -127,16 +127,16 @@ func (m *MonkeyPatchPanicInjector) Inject(ctx context.Context) error {
 		}
 
 		m.patchManager.AddPatch(handle)
-		slog.Info("monkey patch applied",
+		chaoskit.GetLogger(ctx).Info("monkey patch applied",
 			slog.String("injector", m.name),
 			slog.String("function", funcName),
 			slog.Float64("probability", probability))
 	}
 
-	slog.Info("monkey patch panic injector started",
+	chaoskit.GetLogger(ctx).Info("monkey patch panic injector started",
 		slog.String("injector", m.name),
 		slog.Int("targets_patched", len(m.targets)))
-	slog.Warn("monkey patching requires -gcflags=all=-l for correct operation",
+	chaoskit.GetLogger(ctx).Warn("monkey patching requires -gcflags=all=-l for correct operation",
 		slog.String("injector", m.name))
 
 	return nil
@@ -147,7 +147,7 @@ func (m *MonkeyPatchPanicInjector) Stop(ctx context.Context) error {
 	defer m.mu.Unlock()
 
 	if !m.stopped {
-		m.patchManager.RestoreAllPatches(func(handle PatchHandle) string {
+		m.patchManager.RestoreAllPatches(ctx, func(handle PatchHandle) string {
 			for _, target := range m.targets {
 				if target.Func == handle.Func {
 					return GetFuncName(target.Func, target.FuncName)
@@ -157,7 +157,7 @@ func (m *MonkeyPatchPanicInjector) Stop(ctx context.Context) error {
 			return ""
 		})
 		m.stopped = true
-		slog.Info("monkey patch panic injector stopped",
+		chaoskit.GetLogger(ctx).Info("monkey patch panic injector stopped",
 			slog.String("injector", m.name),
 			slog.String("status", "patches restored"))
 	}

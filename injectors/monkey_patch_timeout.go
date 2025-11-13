@@ -156,7 +156,7 @@ func (m *MonkeyPatchTimeoutInjector) Inject(ctx context.Context) error {
 				copy(newArgs, args)
 				newArgs[0] = reflect.ValueOf(timeoutCtx)
 
-				slog.Debug("monkey patch timeout triggered",
+				chaoskit.GetLogger(ctx).Debug("monkey patch timeout triggered",
 					slog.String("injector", m.name),
 					slog.String("function", funcName),
 					slog.Duration("timeout", timeout),
@@ -192,7 +192,7 @@ func (m *MonkeyPatchTimeoutInjector) Inject(ctx context.Context) error {
 							}
 						}
 
-						slog.Debug("timeout injected",
+						chaoskit.GetLogger(ctx).Debug("timeout injected",
 							slog.String("injector", m.name),
 							slog.String("function", funcName),
 							slog.String("error", returnError.Error()))
@@ -203,7 +203,7 @@ func (m *MonkeyPatchTimeoutInjector) Inject(ctx context.Context) error {
 					*m.timeoutCounts[target.Func]++
 					m.mu.Unlock()
 
-					slog.Debug("timeout occurred",
+					chaoskit.GetLogger(ctx).Debug("timeout occurred",
 						slog.String("injector", m.name),
 						slog.String("function", funcName),
 						slog.String("error", returnError.Error()))
@@ -230,17 +230,17 @@ func (m *MonkeyPatchTimeoutInjector) Inject(ctx context.Context) error {
 		}
 
 		m.patchManager.AddPatch(handle)
-		slog.Debug("monkey patch applied",
+		chaoskit.GetLogger(ctx).Debug("monkey patch applied",
 			slog.String("injector", m.name),
 			slog.String("function", funcName),
 			slog.Duration("timeout", timeout),
 			slog.Float64("probability", probability))
 	}
 
-	slog.Info("monkey patch timeout injector started",
+	chaoskit.GetLogger(ctx).Info("monkey patch timeout injector started",
 		slog.String("injector", m.name),
 		slog.Int("targets_patched", len(m.targets)))
-	slog.Warn("monkey patching requires -gcflags=all=-l for correct operation",
+	chaoskit.GetLogger(ctx).Warn("monkey patching requires -gcflags=all=-l for correct operation",
 		slog.String("injector", m.name))
 
 	return nil
@@ -251,7 +251,7 @@ func (m *MonkeyPatchTimeoutInjector) Stop(ctx context.Context) error {
 	defer m.mu.Unlock()
 
 	if !m.stopped {
-		m.patchManager.RestoreAllPatches(func(handle PatchHandle) string {
+		m.patchManager.RestoreAllPatches(ctx, func(handle PatchHandle) string {
 			for _, target := range m.targets {
 				if target.Func == handle.Func {
 					timeoutCount := int64(0)
@@ -259,7 +259,7 @@ func (m *MonkeyPatchTimeoutInjector) Stop(ctx context.Context) error {
 						timeoutCount = *countPtr
 					}
 					name := GetFuncName(target.Func, target.FuncName)
-					slog.Debug("monkey patch restored",
+					chaoskit.GetLogger(ctx).Debug("monkey patch restored",
 						slog.String("injector", m.name),
 						slog.String("function", name),
 						slog.Int64("timeouts_applied", timeoutCount))
@@ -271,7 +271,7 @@ func (m *MonkeyPatchTimeoutInjector) Stop(ctx context.Context) error {
 			return ""
 		})
 		m.stopped = true
-		slog.Info("monkey patch timeout injector stopped",
+		chaoskit.GetLogger(ctx).Info("monkey patch timeout injector stopped",
 			slog.String("injector", m.name),
 			slog.String("status", "patches restored"))
 	}

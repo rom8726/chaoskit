@@ -157,7 +157,7 @@ func (m *MonkeyPatchErrorInjector) Inject(ctx context.Context) error {
 					err = target.Error
 				}
 
-				slog.Debug("monkey patch error triggered",
+				chaoskit.GetLogger(ctx).Debug("monkey patch error triggered",
 					slog.String("injector", m.name),
 					slog.String("function", funcName),
 					slog.String("error", err.Error()),
@@ -184,17 +184,17 @@ func (m *MonkeyPatchErrorInjector) Inject(ctx context.Context) error {
 		}
 
 		m.patchManager.AddPatch(handle)
-		slog.Debug("monkey patch applied",
+		chaoskit.GetLogger(ctx).Debug("monkey patch applied",
 			slog.String("injector", m.name),
 			slog.String("function", funcName),
 			slog.String("error", m.getErrorDescription(target)),
 			slog.Float64("probability", probability))
 	}
 
-	slog.Info("monkey patch error injector started",
+	chaoskit.GetLogger(ctx).Info("monkey patch error injector started",
 		slog.String("injector", m.name),
 		slog.Int("targets_patched", len(m.targets)))
-	slog.Warn("monkey patching requires -gcflags=all=-l for correct operation",
+	chaoskit.GetLogger(ctx).Warn("monkey patching requires -gcflags=all=-l for correct operation",
 		slog.String("injector", m.name))
 
 	return nil
@@ -205,7 +205,7 @@ func (m *MonkeyPatchErrorInjector) Stop(ctx context.Context) error {
 	defer m.mu.Unlock()
 
 	if !m.stopped {
-		m.patchManager.RestoreAllPatches(func(handle PatchHandle) string {
+		m.patchManager.RestoreAllPatches(ctx, func(handle PatchHandle) string {
 			for _, target := range m.targets {
 				if target.Func == handle.Func {
 					errorCount := int64(0)
@@ -213,7 +213,7 @@ func (m *MonkeyPatchErrorInjector) Stop(ctx context.Context) error {
 						errorCount = *countPtr
 					}
 					name := GetFuncName(target.Func, target.FuncName)
-					slog.Debug("monkey patch restored",
+					chaoskit.GetLogger(ctx).Debug("monkey patch restored",
 						slog.String("injector", m.name),
 						slog.String("function", name),
 						slog.Int64("errors_injected", errorCount))
@@ -225,7 +225,7 @@ func (m *MonkeyPatchErrorInjector) Stop(ctx context.Context) error {
 			return ""
 		})
 		m.stopped = true
-		slog.Info("monkey patch error injector stopped",
+		chaoskit.GetLogger(ctx).Info("monkey patch error injector stopped",
 			slog.String("injector", m.name),
 			slog.String("status", "patches restored"))
 	}

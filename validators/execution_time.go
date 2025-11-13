@@ -41,7 +41,7 @@ func (e *ExecutionTimeValidator) Validate(ctx context.Context, target chaoskit.T
 
 	if elapsed < e.minDuration {
 		err := fmt.Errorf("execution too fast: %v (min: %v)", elapsed, e.minDuration)
-		slog.Error("execution time validator failed",
+		chaoskit.GetLogger(ctx).Error("execution time validator failed",
 			slog.String("validator", e.name),
 			slog.Duration("elapsed", elapsed),
 			slog.Duration("min_duration", e.minDuration),
@@ -52,7 +52,7 @@ func (e *ExecutionTimeValidator) Validate(ctx context.Context, target chaoskit.T
 
 	if elapsed > e.maxDuration {
 		err := fmt.Errorf("execution too slow: %v (max: %v)", elapsed, e.maxDuration)
-		slog.Error("execution time validator failed",
+		chaoskit.GetLogger(ctx).Error("execution time validator failed",
 			slog.String("validator", e.name),
 			slog.Duration("elapsed", elapsed),
 			slog.Duration("max_duration", e.maxDuration),
@@ -63,13 +63,13 @@ func (e *ExecutionTimeValidator) Validate(ctx context.Context, target chaoskit.T
 
 	// Warn if approaching limits
 	if elapsed > e.maxDuration*9/10 {
-		slog.Warn("execution time approaching max limit",
+		chaoskit.GetLogger(ctx).Warn("execution time approaching max limit",
 			slog.String("validator", e.name),
 			slog.Duration("elapsed", elapsed),
 			slog.Duration("max_duration", e.maxDuration))
 	}
 
-	slog.Debug("execution time validator passed",
+	chaoskit.GetLogger(ctx).Debug("execution time validator passed",
 		slog.String("validator", e.name),
 		slog.Duration("elapsed", elapsed),
 		slog.Duration("min_duration", e.minDuration),

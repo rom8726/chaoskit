@@ -35,7 +35,7 @@ func (p *PanicRecoveryValidator) Validate(ctx context.Context, target chaoskit.T
 
 	// Warn if approaching limit (80% threshold)
 	if p.panicCount > int(float64(p.maxPanics)*0.8) {
-		slog.Warn("panic count approaching limit",
+		chaoskit.GetLogger(ctx).Warn("panic count approaching limit",
 			slog.String("validator", p.name),
 			slog.Int("current", p.panicCount),
 			slog.Int("limit", p.maxPanics))
@@ -43,7 +43,7 @@ func (p *PanicRecoveryValidator) Validate(ctx context.Context, target chaoskit.T
 
 	if p.panicCount > p.maxPanics {
 		err := fmt.Errorf("too many panics: %d (limit: %d)", p.panicCount, p.maxPanics)
-		slog.Error("panic recovery validator failed",
+		chaoskit.GetLogger(ctx).Error("panic recovery validator failed",
 			slog.String("validator", p.name),
 			slog.Int("panic_count", p.panicCount),
 			slog.Int("limit", p.maxPanics),
@@ -52,7 +52,7 @@ func (p *PanicRecoveryValidator) Validate(ctx context.Context, target chaoskit.T
 		return err
 	}
 
-	slog.Debug("panic recovery validator passed",
+	chaoskit.GetLogger(ctx).Debug("panic recovery validator passed",
 		slog.String("validator", p.name),
 		slog.Int("panic_count", p.panicCount),
 		slog.Int("limit", p.maxPanics))
@@ -61,11 +61,11 @@ func (p *PanicRecoveryValidator) Validate(ctx context.Context, target chaoskit.T
 }
 
 // RecordPanic records a panic occurrence
-func (p *PanicRecoveryValidator) RecordPanic() {
+func (p *PanicRecoveryValidator) RecordPanic(ctx context.Context) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.panicCount++
-	slog.Debug("panic recorded",
+	chaoskit.GetLogger(ctx).Debug("panic recorded",
 		slog.String("validator", p.name),
 		slog.Int("total_panics", p.panicCount))
 }

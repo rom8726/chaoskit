@@ -11,7 +11,7 @@ func TestDelay_ProbabilityMode_GetChaosDelay(t *testing.T) {
 	if err := di.Inject(context.Background()); err != nil {
 		t.Fatalf("inject err: %v", err)
 	}
-	d, ok := di.GetChaosDelay()
+	d, ok := di.GetChaosDelay(context.Background())
 	if !ok {
 		t.Fatalf("expected delay to be applied")
 	}
@@ -24,7 +24,7 @@ func TestDelay_ProbabilityMode_GetChaosDelay(t *testing.T) {
 	if err := di.Stop(context.Background()); err != nil {
 		t.Fatalf("stop err: %v", err)
 	}
-	if d2, ok2 := di.GetChaosDelay(); ok2 || d2 != 0 {
+	if d2, ok2 := di.GetChaosDelay(context.Background()); ok2 || d2 != 0 {
 		t.Fatalf("expected no delay after stop, got %v %v", d2, ok2)
 	}
 }
@@ -40,7 +40,7 @@ func TestDelay_IntervalMode_AppliesDelay(t *testing.T) {
 	deadline := time.Now().Add(500 * time.Millisecond)
 	var applied time.Duration
 	for time.Now().Before(deadline) {
-		if d, ok := di.GetChaosDelay(); ok {
+		if d, ok := di.GetChaosDelay(context.Background()); ok {
 			applied = d
 			break
 		}
@@ -54,7 +54,7 @@ func TestDelay_IntervalMode_AppliesDelay(t *testing.T) {
 	}
 	// Stop and ensure no further delays
 	_ = di.Stop(context.Background())
-	if d, ok := di.GetChaosDelay(); ok || d != 0 {
+	if d, ok := di.GetChaosDelay(context.Background()); ok || d != 0 {
 		t.Fatalf("expected no delay after stop, got %v %v", d, ok)
 	}
 }

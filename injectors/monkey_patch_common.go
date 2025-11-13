@@ -1,10 +1,13 @@
 package injectors
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"reflect"
 	"sync"
+
+	"github.com/rom8726/chaoskit"
 )
 
 // PatchHandle represents a handle to a patched function
@@ -161,7 +164,7 @@ func (pm *PatchManager) AddPatch(handle PatchHandle) {
 }
 
 // RestoreAllPatches restores all patches in the manager
-func (pm *PatchManager) RestoreAllPatches(onRestore func(handle PatchHandle) string) {
+func (pm *PatchManager) RestoreAllPatches(ctx context.Context, onRestore func(handle PatchHandle) string) {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 
@@ -173,7 +176,7 @@ func (pm *PatchManager) RestoreAllPatches(onRestore func(handle PatchHandle) str
 			}
 
 			if err := RestorePatch(&pm.patches[i]); err == nil && name != "" {
-				slog.Debug("monkey patch restored",
+				chaoskit.GetLogger(ctx).Debug("monkey patch restored",
 					slog.String("function", name))
 			}
 		}

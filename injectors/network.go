@@ -8,6 +8,8 @@ import (
 	"time"
 
 	toxiproxy "github.com/Shopify/toxiproxy/v2/client"
+
+	"github.com/rom8726/chaoskit"
 )
 
 // ToxiProxyClient wraps the ToxiProxy client for easier usage
@@ -79,7 +81,7 @@ func (t *ToxiProxyLatencyInjector) Inject(ctx context.Context) error {
 		return fmt.Errorf("failed to add latency toxic: %w", err)
 	}
 
-	slog.Info("toxiproxy latency injected",
+	chaoskit.GetLogger(ctx).Info("toxiproxy latency injected",
 		slog.String("injector", t.name),
 		slog.String("proxy", t.proxyName),
 		slog.Int("latency_ms", t.latency),
@@ -101,7 +103,7 @@ func (t *ToxiProxyLatencyInjector) Stop(ctx context.Context) error {
 	}
 
 	t.stopped = true
-	slog.Info("toxiproxy latency removed",
+	chaoskit.GetLogger(ctx).Info("toxiproxy latency removed",
 		slog.String("injector", t.name),
 		slog.String("proxy", t.proxyName))
 
@@ -156,7 +158,7 @@ func (t *ToxiProxyBandwidthInjector) Inject(ctx context.Context) error {
 		return fmt.Errorf("failed to add bandwidth toxic: %w", err)
 	}
 
-	slog.Info("toxiproxy bandwidth limited",
+	chaoskit.GetLogger(ctx).Info("toxiproxy bandwidth limited",
 		slog.String("injector", t.name),
 		slog.String("proxy", t.proxyName),
 		slog.Int64("rate_kbps", t.rate))
@@ -177,7 +179,7 @@ func (t *ToxiProxyBandwidthInjector) Stop(ctx context.Context) error {
 	}
 
 	t.stopped = true
-	slog.Info("toxiproxy bandwidth limit removed",
+	chaoskit.GetLogger(ctx).Info("toxiproxy bandwidth limit removed",
 		slog.String("injector", t.name),
 		slog.String("proxy", t.proxyName))
 
@@ -232,7 +234,7 @@ func (t *ToxiProxyTimeoutInjector) Inject(ctx context.Context) error {
 		return fmt.Errorf("failed to add timeout toxic: %w", err)
 	}
 
-	slog.Info("toxiproxy timeout injected",
+	chaoskit.GetLogger(ctx).Info("toxiproxy timeout injected",
 		slog.String("injector", t.name),
 		slog.String("proxy", t.proxyName),
 		slog.Int("timeout_ms", t.timeout))
@@ -253,7 +255,7 @@ func (t *ToxiProxyTimeoutInjector) Stop(ctx context.Context) error {
 	}
 
 	t.stopped = true
-	slog.Info("toxiproxy timeout removed",
+	chaoskit.GetLogger(ctx).Info("toxiproxy timeout removed",
 		slog.String("injector", t.name),
 		slog.String("proxy", t.proxyName))
 
@@ -319,7 +321,7 @@ func (t *ToxiProxySlicerInjector) Inject(ctx context.Context) error {
 		return fmt.Errorf("failed to add slicer toxic: %w", err)
 	}
 
-	slog.Info("toxiproxy slicer injected",
+	chaoskit.GetLogger(ctx).Info("toxiproxy slicer injected",
 		slog.String("injector", t.name),
 		slog.String("proxy", t.proxyName),
 		slog.Int("average_size_bytes", t.averageSize),
@@ -342,7 +344,7 @@ func (t *ToxiProxySlicerInjector) Stop(ctx context.Context) error {
 	}
 
 	t.stopped = true
-	slog.Info("toxiproxy slicer removed",
+	chaoskit.GetLogger(ctx).Info("toxiproxy slicer removed",
 		slog.String("injector", t.name),
 		slog.String("proxy", t.proxyName))
 
@@ -389,6 +391,8 @@ func (m *ToxiProxyManager) CreateProxy(cfg ProxyConfig) error {
 	}
 
 	m.proxies[cfg.Name] = proxy
+	// Note: CreateProxy doesn't have context, so we use slog.Default()
+	// This is acceptable as it's a setup operation
 	slog.Info("toxiproxy proxy created",
 		slog.String("name", cfg.Name),
 		slog.String("listen", cfg.Listen),
@@ -412,6 +416,7 @@ func (m *ToxiProxyManager) DeleteProxy(name string) error {
 	}
 
 	delete(m.proxies, name)
+	// Note: DeleteProxy doesn't have context, so we use slog.Default()
 	slog.Info("toxiproxy proxy deleted",
 		slog.String("name", name))
 
@@ -441,6 +446,7 @@ func (m *ToxiProxyManager) CleanupAll() error {
 		if err := proxy.Delete(); err != nil {
 			errs = append(errs, fmt.Errorf("failed to delete proxy %s: %w", name, err))
 		} else {
+			// Note: CleanupAll doesn't have context, so we use slog.Default()
 			slog.Debug("toxiproxy proxy cleaned up",
 				slog.String("name", name))
 		}

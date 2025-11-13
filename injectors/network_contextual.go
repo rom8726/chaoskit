@@ -85,7 +85,7 @@ func (c *ContextualNetworkInjector) SetupNetwork(ctx context.Context) error {
 		// Proxy exists, continue
 	}
 
-	slog.Info("network injector setup completed",
+	chaoskit.GetLogger(ctx).Info("network injector setup completed",
 		slog.String("injector", c.name),
 		slog.String("proxy", c.proxyConfig.Name))
 
@@ -105,7 +105,7 @@ func (c *ContextualNetworkInjector) TeardownNetwork(ctx context.Context) error {
 		return fmt.Errorf("failed to teardown network proxy: %w", err)
 	}
 
-	slog.Info("network injector teardown completed",
+	chaoskit.GetLogger(ctx).Info("network injector teardown completed",
 		slog.String("injector", c.name),
 		slog.String("proxy", c.proxyConfig.Name))
 
@@ -123,7 +123,7 @@ func (c *ContextualNetworkInjector) Inject(ctx context.Context) error {
 	// Store deterministic random generator from context
 	c.rng = chaoskit.GetRand(ctx)
 
-	slog.Info("contextual network injector started",
+	chaoskit.GetLogger(ctx).Info("contextual network injector started",
 		slog.String("injector", c.name),
 		slog.Float64("apply_rate", c.applyRate))
 
@@ -136,7 +136,7 @@ func (c *ContextualNetworkInjector) Stop(ctx context.Context) error {
 
 	if !c.stopped {
 		c.stopped = true
-		slog.Info("contextual network injector stopped",
+		chaoskit.GetLogger(ctx).Info("contextual network injector stopped",
 			slog.String("injector", c.name))
 	}
 

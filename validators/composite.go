@@ -29,7 +29,7 @@ func (c *CompositeValidator) Name() string {
 func (c *CompositeValidator) Validate(ctx context.Context, target chaoskit.Target) error {
 	for _, val := range c.validators {
 		if err := val.Validate(ctx, target); err != nil {
-			slog.Error("composite validator failed",
+			chaoskit.GetLogger(ctx).Error("composite validator failed",
 				slog.String("composite_validator", c.name),
 				slog.String("failed_validator", val.Name()),
 				slog.String("error", err.Error()))
@@ -38,7 +38,7 @@ func (c *CompositeValidator) Validate(ctx context.Context, target chaoskit.Targe
 		}
 	}
 
-	slog.Debug("composite validator passed",
+	chaoskit.GetLogger(ctx).Debug("composite validator passed",
 		slog.String("composite_validator", c.name),
 		slog.Int("validator_count", len(c.validators)))
 

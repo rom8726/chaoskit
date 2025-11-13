@@ -115,10 +115,10 @@ func NewExecutor(opts ...ExecutorOption) *Executor {
 // internal event recorder that forwards to validators
 type validatorEventRecorder struct{ validators []Validator }
 
-func (r *validatorEventRecorder) RecordPanic() {
+func (r *validatorEventRecorder) RecordPanic(ctx context.Context) {
 	for _, v := range r.validators {
 		if pr, ok := v.(PanicRecorder); ok {
-			pr.RecordPanic()
+			pr.RecordPanic(ctx)
 		}
 	}
 }
@@ -372,11 +372,16 @@ func (e *Executor) executeOnce(ctx context.Context, scenario *Scenario) Executio
 	recorder := &validatorEventRecorder{validators: scenario.validators}
 	ctx = AttachRecorder(ctx, recorder)
 
+	// Attach logger to context for injectors and validators to use
+	if e.logger != nil {
+		ctx = AttachLogger(ctx, e.logger)
+	}
+
 	// Collect all injectors (from direct injectors and scopes)
 	allInjectors := e.getAllInjectors(scenario)
 
 	// Attach chaos context for user code to use
-	chaosCtx := e.buildChaosContext(allInjectors)
+	chaosCtx := e.buildChaosContext(ctx, allInjectors)
 	ctx = AttachChaos(ctx, chaosCtx)
 
 	// Execute steps with panic recovery
@@ -385,7 +390,7 @@ func (e *Executor) executeOnce(ctx context.Context, scenario *Scenario) Executio
 			defer func() {
 				if r := recover(); r != nil {
 					// record panic and convert to error
-					recorder.RecordPanic()
+					recorder.RecordPanic(ctx)
 					err = fmt.Errorf("panic in step %s: %v", step.Name(), r)
 				}
 			}()
@@ -441,7 +446,7 @@ func (e *Executor) executeOnce(ctx context.Context, scenario *Scenario) Executio
 	return result
 }
 
-func (e *Executor) buildChaosContext(injectors []Injector) *ChaosContext {
+func (e *Executor) buildChaosContext(ctx context.Context, injectors []Injector) *ChaosContext {
 	chaos := &ChaosContext{
 		providers: make(map[string]ChaosProvider),
 	}
@@ -450,9 +455,9 @@ func (e *Executor) buildChaosContext(injectors []Injector) *ChaosContext {
 	for _, inj := range injectors {
 		if delayProvider, ok := inj.(ChaosDelayProvider); ok {
 			chaos.delayFunc = func() bool {
-				delay, ok := delayProvider.GetChaosDelay()
+				delay, ok := delayProvider.GetChaosDelay(ctx)
 				if ok && delay > 0 {
-					slog.Debug("delay injected in user code",
+					GetLogger(ctx).Debug("delay injected in user code",
 						slog.Duration("delay", delay))
 					time.Sleep(delay)
 
@@ -466,7 +471,7 @@ func (e *Executor) buildChaosContext(injectors []Injector) *ChaosContext {
 		if panicProvider, ok := inj.(ChaosPanicProvider); ok {
 			chaos.panicFunc = func() bool {
 				if panicProvider.ShouldChaosPanic() {
-					slog.Debug("panic triggered in user code",
+					GetLogger(ctx).Debug("panic triggered in user code",
 						slog.Float64("probability", panicProvider.GetPanicProbability()))
 
 					return true
@@ -486,7 +491,7 @@ func (e *Executor) buildChaosContext(injectors []Injector) *ChaosContext {
 
 				// Apply latency if configured
 				if latency, hasLatency := networkProvider.GetNetworkLatency(host, port); hasLatency && latency > 0 {
-					slog.Debug("network latency injected",
+					GetLogger(ctx).Debug("network latency injected",
 						slog.String("host", host),
 						slog.Int("port", port),
 						slog.Duration("latency", latency))
@@ -497,7 +502,7 @@ func (e *Executor) buildChaosContext(injectors []Injector) *ChaosContext {
 
 				// Check for connection drop
 				if networkProvider.ShouldDropConnection(host, port) {
-					slog.Debug("network connection drop simulated",
+					GetLogger(ctx).Debug("network connection drop simulated",
 						slog.String("host", host),
 						slog.Int("port", port))
 

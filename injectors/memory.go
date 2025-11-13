@@ -51,7 +51,7 @@ func (m *MemoryPressureInjector) Inject(ctx context.Context) error {
 		m.allocated = append(m.allocated, chunk)
 	}
 
-	slog.Info("memory pressure injected",
+	chaoskit.GetLogger(ctx).Info("memory pressure injected",
 		slog.String("injector", m.name),
 		slog.Int("size_mb", m.sizeMB))
 

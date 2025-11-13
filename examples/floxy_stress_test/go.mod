@@ -1,11 +1,11 @@
 module floxy-stress-test
 
-go 1.25.3
+go 1.25
 
 require (
 	github.com/jackc/pgx/v5 v5.7.6
 	github.com/rom8726/chaoskit v0.0.0
-	github.com/rom8726/floxy v1.11.2
+	github.com/rom8726/floxy v1.13.0
 )
 
 require (

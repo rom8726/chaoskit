@@ -5,6 +5,51 @@
 
 A modular Go framework for chaos engineering, fault injection, and reliability testing of distributed systems, libraries, and services.
 
+<img src="docs/chaoskit_logo.png" alt="ChaosKit Logo" width="500" />
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Key Capabilities](#key-capabilities)
+- [Latest Features](#latest-features)
+- [Installation](#installation)
+- [When to Use ChaosKit](#when-to-use-chaoskit)
+- [Quick Start](#quick-start)
+- [Injection Methods: Capabilities and Limitations](#injection-methods-capabilities-and-limitations)
+  - [1. Context-Based Injection (Recommended for New Code)](#1-context-based-injection-recommended-for-new-code)
+  - [2. Failpoint Injection (Recommended for Production)](#2-failpoint-injection-recommended-for-production)
+  - [3. ToxiProxy (Recommended for Network Chaos)](#3-toxiproxy-recommended-for-network-chaos)
+  - [4. Monkey Patching (⚠️ Limited Use Cases)](#4-monkey-patching--limited-use-cases)
+  - [Summary Table](#summary-table)
+  - [Choosing the Right Method](#choosing-the-right-method)
+- [Core Components](#core-components)
+  - [Chaos Injectors](#chaos-injectors)
+  - [Validators](#validators)
+  - [Metrics and Reporting](#metrics-and-reporting)
+- [Usage Patterns](#usage-patterns)
+  - [Basic Reliability Testing](#basic-reliability-testing)
+  - [Continuous Testing](#continuous-testing)
+  - [Load Testing with Validation](#load-testing-with-validation)
+- [Configuration Options](#configuration-options)
+  - [Failure Policies](#failure-policies)
+  - [Logging Configuration](#logging-configuration)
+- [Event Recording](#event-recording)
+- [Examples](#examples)
+- [Architecture](#architecture)
+- [Building](#building)
+- [Roadmap](#roadmap)
+- [Best Practices](#best-practices)
+- [Production Checklist](#production-checklist)
+- [Documentation](#documentation)
+- [Comparison with Other Tools](#comparison-with-other-tools)
+- [FAQ](#faq)
+- [Performance Considerations](#performance-considerations)
+- [Security Considerations](#security-considerations)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+- [License](#license)
+- [Acknowledgments](#acknowledgments)
+
 ## Overview
 
 ChaosKit enables systematic testing of system reliability and resilience through controlled fault injection and invariant validation.
@@ -611,8 +656,6 @@ Before running chaos tests in production-like environments:
 
 - **[TUTORIAL.md](TUTORIAL.md)** - Progressive tutorial from basics to advanced
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** - Detailed architecture with diagrams
-- **[TECHNICAL_SPECIFICATION.md](TECHNICAL_SPECIFICATION.md)** - Technical specification
-- [examples/README.md](examples/README.md) - Example documentation
 - [GoDoc](https://pkg.go.dev/github.com/rom8726/chaoskit) - API documentation
 
 ## Comparison with Other Tools
@@ -696,10 +739,8 @@ Most real-world Go code uses methods and private functions, which cannot be monk
 **A**: With significant caveats:
 - ✅ **Failpoints** are production-safe (compile to no-op without `-tags failpoint`)
 - ✅ **ToxiProxy** can be used in staging/pre-prod environments
-- ⚠️ **Context-based chaos** is possible but use very low probabilities (< 0.001)
+- ✅ **Context-based chaos** is production-safe
 - ❌ **Monkey patching** should NEVER be used in production
-
-**Recommendation**: Use failpoints for production chaos, or run ChaosKit in dedicated chaos testing environments that mirror production.
 
 ### Q: How do I test a third-party library like `github.com/someone/library`?
 

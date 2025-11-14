@@ -100,9 +100,6 @@ func NewExecutor(opts ...ExecutorOption) *Executor {
 	return e
 }
 
-// internal event recorder that forwards to validators
-type validatorEventRecorder struct{ validators []Validator }
-
 // wrappedStep is a helper type that wraps a function to implement the Step interface
 type wrappedStep struct {
 	name    string
@@ -116,6 +113,9 @@ func (w *wrappedStep) Name() string {
 func (w *wrappedStep) Execute(ctx context.Context, target Target) error {
 	return w.execute(ctx, target)
 }
+
+// internal event recorder that forwards to validators
+type validatorEventRecorder struct{ validators []Validator }
 
 func (r *validatorEventRecorder) RecordPanic(ctx context.Context) {
 	for _, v := range r.validators {

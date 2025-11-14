@@ -153,7 +153,7 @@ scenario := chaoskit.NewScenario("comprehensive-validation").
     Step("execute", ExecuteSystem).
     Assert("goroutines", validators.GoroutineLimit(200)).
     Assert("recursion", validators.RecursionDepthLimit(50)).
-    Assert("no-infinite-loop", validators.NoInfiniteLoop(5*time.Second)).
+    Assert("no-infinite-loop", validators.NoSlowIteration(5*time.Second)).
     Assert("memory", validators.MemoryUnderLimit(512*1024*1024)). // 512MB
     Repeat(100).
     Build()
@@ -608,7 +608,7 @@ func main() {
         Inject("panic", injectors.PanicProbability(0.01)).
         Assert("goroutines", validators.GoroutineLimit(200)).
         Assert("recursion", validators.RecursionDepthLimit(100)).
-        Assert("no-infinite-loop", validators.NoInfiniteLoop(5*time.Second)).
+        Assert("no-infinite-loop", validators.NoSlowIteration(5*time.Second)).
         Repeat(1000).
         Build()
     

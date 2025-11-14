@@ -413,7 +413,7 @@ func main() {
 
 **GoroutineLeakValidator**: Detects goroutine leaks and resource exhaustion
 
-**InfinityLoopValidator**: Identifies infinite loops and stuck executions
+**SlowIterationValidator**: Identifies long-running executions
 
 **ExecutionTimeValidator**: Validates performance within specified bounds
 

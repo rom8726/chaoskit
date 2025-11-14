@@ -261,7 +261,7 @@ graph TB
     Validator[Validator Interface] --> PanicRecovery[PanicRecoveryValidator]
     Validator --> Recursion[RecursionDepthValidator]
     Validator --> Goroutine[GoroutineLeakValidator]
-    Validator --> InfiniteLoop[InfiniteLoopValidator]
+    Validator --> SlowIteration[SlowIterationValidator]
     Validator --> ExecutionTime[ExecutionTimeValidator]
     Validator --> Memory[MemoryLimitValidator]
     Validator --> StateConsistency[StateConsistencyValidator]

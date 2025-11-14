@@ -26,6 +26,23 @@ func (c *CompositeValidator) Name() string {
 	return c.name
 }
 
+func (c *CompositeValidator) Severity() chaoskit.ValidationSeverity {
+	// Return the highest severity from nested validators
+	// Critical > Warning > Info
+	maxSeverity := chaoskit.SeverityInfo
+	for _, val := range c.validators {
+		severity := val.Severity()
+		if severity == chaoskit.SeverityCritical {
+			return chaoskit.SeverityCritical
+		}
+		if severity == chaoskit.SeverityWarning && maxSeverity == chaoskit.SeverityInfo {
+			maxSeverity = chaoskit.SeverityWarning
+		}
+	}
+
+	return maxSeverity
+}
+
 func (c *CompositeValidator) Validate(ctx context.Context, target chaoskit.Target) error {
 	for _, val := range c.validators {
 		if err := val.Validate(ctx, target); err != nil {

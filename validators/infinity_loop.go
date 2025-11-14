@@ -30,6 +30,10 @@ func (i *InfiniteLoopValidator) Name() string {
 	return i.name
 }
 
+func (i *InfiniteLoopValidator) Severity() chaoskit.ValidationSeverity {
+	return chaoskit.SeverityCritical
+}
+
 func (i *InfiniteLoopValidator) Validate(ctx context.Context, target chaoskit.Target) error {
 	i.mu.Lock()
 	defer i.mu.Unlock()

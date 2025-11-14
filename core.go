@@ -183,6 +183,9 @@ type MetricsProvider interface {
 // Validate() is called after each scenario execution to check invariants.
 // Return an error if the invariant is violated.
 //
+// Severity() returns the severity level of this validator for CI/CD integration.
+// This determines how failures are categorized in test reports.
+//
 // Example implementations:
 //   - GoroutineLimit: Ensures goroutine count stays below threshold
 //   - RecursionDepthLimit: Verifies recursion depth doesn't exceed limit
@@ -192,6 +195,10 @@ type MetricsProvider interface {
 type Validator interface {
 	Name() string
 	Validate(ctx context.Context, target Target) error
+
+	// Severity returns the severity level of this validator
+	// Added in v1.x for CI/CD integration
+	Severity() ValidationSeverity
 }
 
 // Resettable is implemented by validators that need to reset state between iterations
@@ -259,6 +266,7 @@ func GetLogger(ctx context.Context) *slog.Logger {
 			return logger
 		}
 	}
+
 	return slog.Default()
 }
 

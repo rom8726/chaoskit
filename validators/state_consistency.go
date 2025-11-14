@@ -27,6 +27,10 @@ func (s *StateConsistencyValidator) Name() string {
 	return s.name
 }
 
+func (s *StateConsistencyValidator) Severity() chaoskit.ValidationSeverity {
+	return chaoskit.SeverityWarning
+}
+
 func (s *StateConsistencyValidator) Validate(ctx context.Context, target chaoskit.Target) error {
 	return s.checkFunc(ctx, target)
 }

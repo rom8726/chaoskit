@@ -639,7 +639,7 @@ func main() {
 	log.Println()
 	log.Println("Chaos injection methods:")
 	log.Println("  1. Monkey patching - runtime function patching")
-	log.Println("  2. Gofail - failpoint-based injection")
+	log.Println("  2. Failpoint - failpoint-based injection")
 	log.Println("  3. ToxiProxy - network chaos for database")
 	log.Println()
 

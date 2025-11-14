@@ -40,7 +40,6 @@ A modular Go framework for chaos engineering, fault injection, and reliability t
 - [Building](#building)
 - [Roadmap](#roadmap)
 - [Best Practices](#best-practices)
-- [Production Checklist](#production-checklist)
 - [Documentation](#documentation)
 - [Comparison with Other Tools](#comparison-with-other-tools)
 - [FAQ](#faq)
@@ -637,21 +636,6 @@ See [TECHNICAL_SPECIFICATION.md](TECHNICAL_SPECIFICATION.md) for detailed roadma
 8. **Deterministic Seeds**: Use `WithSeed()` for reproducible tests
 9. **Scoped Injectors**: Organize injectors by system component using scopes
 10. **Resource Limits**: Set appropriate limits in validators based on your system
-
-## Production Checklist
-
-Before running chaos tests in production-like environments:
-
-- [ ] Set appropriate validator thresholds based on baseline metrics
-- [ ] Use structured logging (JSON format) for log aggregation
-- [ ] Configure failure policy (FailFast vs ContinueOnFailure)
-- [ ] Set deterministic seeds for reproducible tests
-- [ ] Monitor resource usage (CPU, memory, goroutines)
-- [ ] Review log levels (Debug in dev, Info in production)
-- [ ] Test with low chaos probabilities first, then increase
-- [ ] Have rollback plan if tests affect production systems
-- [ ] Use scoped injectors to isolate chaos to specific components
-- [ ] Review metrics and reports after test completion
 
 ## Documentation
 

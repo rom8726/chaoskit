@@ -56,18 +56,6 @@ func WithSlogLogger(logger *slog.Logger) ExecutorOption {
 	}
 }
 
-// WithLogLevel sets the log level
-func WithLogLevel(level slog.Level) ExecutorOption {
-	return func(e *Executor) {
-		if e.logger == nil {
-			e.logger = slog.Default()
-		}
-		opts := &slog.HandlerOptions{Level: level}
-		e.logger = slog.New(e.logger.Handler().WithAttrs(nil).(slog.Handler)) //nolint:gocritic,staticcheck
-		_ = opts                                                              // TODO: apply level to handler
-	}
-}
-
 // WithJSONLogging sets JSON output format
 func WithJSONLogging() ExecutorOption {
 	return func(e *Executor) {

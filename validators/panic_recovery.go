@@ -29,6 +29,10 @@ func (p *PanicRecoveryValidator) Name() string {
 	return p.name
 }
 
+func (p *PanicRecoveryValidator) Severity() chaoskit.ValidationSeverity {
+	return chaoskit.SeverityWarning
+}
+
 func (p *PanicRecoveryValidator) Validate(ctx context.Context, target chaoskit.Target) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()

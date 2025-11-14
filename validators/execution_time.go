@@ -33,6 +33,10 @@ func (e *ExecutionTimeValidator) Name() string {
 	return e.name
 }
 
+func (e *ExecutionTimeValidator) Severity() chaoskit.ValidationSeverity {
+	return chaoskit.SeverityWarning
+}
+
 func (e *ExecutionTimeValidator) Validate(ctx context.Context, target chaoskit.Target) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()

@@ -27,6 +27,10 @@ func (m *MemoryLimitValidator) Name() string {
 	return m.name
 }
 
+func (m *MemoryLimitValidator) Severity() chaoskit.ValidationSeverity {
+	return chaoskit.SeverityCritical
+}
+
 func (m *MemoryLimitValidator) Validate(ctx context.Context, target chaoskit.Target) error {
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)

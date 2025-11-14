@@ -8,6 +8,7 @@ require (
 	github.com/Shopify/toxiproxy/v2 v2.12.0 // indirect
 	github.com/pingcap/errors v0.11.4 // indirect
 	github.com/pingcap/failpoint v0.0.0-20240528011301-b51a646c7c86 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
 replace github.com/rom8726/chaoskit => ../../

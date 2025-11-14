@@ -11,6 +11,12 @@ build: ## Build all examples
 	@go build -o bin/chaos_context examples/chaos_context/main.go
 	@echo "Build complete! Binaries in bin/"
 
+build-tools: ## Build report-viewer tool
+	@echo "Building report-viewer..."
+	@mkdir -p bin
+	@go build -o bin/report-viewer ./cmd/report-viewer
+	@echo "Build complete! Binary: bin/report-viewer"
+
 test: ## Run tests
 	@echo "Running tests..."
 	@go test -v -race -gcflags=all=-l ./...
@@ -32,6 +38,9 @@ fmt: ## Format code
 
 vet: ## Run go vet
 	@go vet ./...
+
+lint: ## Lint code
+	@golangci-lint run ./...
 
 clean: ## Clean build artifacts
 	@rm -rf bin/

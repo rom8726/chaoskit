@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/rom8726/chaoskit"
@@ -251,10 +252,21 @@ func main() {
 		Repeat(5).
 		Build()
 
-	// Run scenario
+	// Run scenario with executor
 	ctx := context.Background()
-	if err := chaoskit.Run(ctx, scenario); err != nil {
-		log.Printf("Scenario completed with errors: %v", err)
+	executor := chaoskit.NewExecutor(
+		chaoskit.WithFailurePolicy(chaoskit.ContinueOnFailure),
+	)
+
+	if err := executor.Run(ctx, scenario); err != nil {
+		log.Printf("Scenario execution completed with errors: %v", err)
+	}
+
+	// Get verdict and generate report
+	thresholds := chaoskit.DefaultThresholds()
+	report, err := executor.Reporter().GetVerdict(thresholds)
+	if err != nil {
+		log.Fatalf("Failed to generate report: %v", err)
 	}
 
 	// Cleanup
@@ -263,7 +275,10 @@ func main() {
 		log.Printf("[Cleanup] Error removing proxy: %v", err)
 	}
 
-	log.Println("\n=== Test Complete ===")
+	// Print detailed report
+	log.Println("\n=== Chaos Test Report ===")
+	log.Println(executor.Reporter().GenerateTextReport(report))
+
 	log.Println("\nKey Points:")
 	log.Println("1. ToxiProxy injectors modify network behavior at proxy level")
 	log.Println("2. All traffic through proxy is affected")
@@ -276,4 +291,7 @@ func main() {
 	log.Println("  - Change baseURL to your server address")
 	log.Println("  - Update proxyUpstream to point to your server")
 	log.Println("  - Modify proxyListen if port 18080 is occupied")
+
+	// Exit with verdict code
+	os.Exit(report.Verdict.ExitCode())
 }

@@ -39,6 +39,10 @@ func (g *GoroutineLeakValidator) Name() string {
 	return g.name
 }
 
+func (g *GoroutineLeakValidator) Severity() chaoskit.ValidationSeverity {
+	return chaoskit.SeverityCritical
+}
+
 func (g *GoroutineLeakValidator) Validate(ctx context.Context, target chaoskit.Target) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()

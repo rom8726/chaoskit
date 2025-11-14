@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/rom8726/chaoskit"
@@ -158,13 +159,27 @@ func main() {
 		Repeat(10).
 		Build()
 
-	// Run scenario
+	// Run scenario with executor
 	ctx := context.Background()
-	if err := chaoskit.Run(ctx, scenario); err != nil {
-		log.Printf("Scenario completed with errors: %v", err)
+	executor := chaoskit.NewExecutor(
+		chaoskit.WithFailurePolicy(chaoskit.ContinueOnFailure),
+	)
+
+	if err := executor.Run(ctx, scenario); err != nil {
+		log.Printf("Scenario execution completed with errors: %v", err)
 	}
 
-	log.Println("\n=== Test Complete ===")
+	// Get verdict and generate report
+	thresholds := chaoskit.DefaultThresholds()
+	report, err := executor.Reporter().GetVerdict(thresholds)
+	if err != nil {
+		log.Fatalf("Failed to generate report: %v", err)
+	}
+
+	// Print detailed report
+	log.Println("\n=== Chaos Test Report ===")
+	log.Println(executor.Reporter().GenerateTextReport(report))
+
 	log.Println("\nKey Points:")
 	log.Println("1. Monkey patching intercepts function calls at runtime")
 	log.Println("2. Panic injector: Functions are replaced with versions that may panic")
@@ -172,4 +187,7 @@ func main() {
 	log.Println("4. Original functions are restored when injector stops")
 	log.Println("5. Requires -gcflags=all=-l to disable compiler inlining")
 	log.Println("6. Delay can be applied before or after function execution")
+
+	// Exit with verdict code
+	os.Exit(report.Verdict.ExitCode())
 }

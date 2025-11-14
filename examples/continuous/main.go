@@ -311,6 +311,9 @@ func main() {
 			log.Println("\n[Main] Shutting down...")
 			cancel()
 
+			// Wait a bit for scenarios to finish
+			time.Sleep(1 * time.Second)
+
 			// Print final stats
 			stats := engine.GetStats()
 			log.Printf("\n=== Final Statistics ===")
@@ -319,6 +322,12 @@ func main() {
 			log.Printf("Successful runs: %d", stats["success_runs"])
 			log.Printf("Failed runs: %d", stats["failed_runs"])
 			log.Printf("Rollbacks: %d", stats["rollbacks"])
+
+			// Note: In continuous mode, we don't have a single executor
+			// Each scenario runs in its own goroutine, so we can't aggregate verdicts
+			// This is a limitation of the continuous example design
+			log.Println("\nNote: Continuous mode runs scenarios independently.")
+			log.Println("For verdict reporting, use a single scenario with RunFor() duration.")
 
 			return
 

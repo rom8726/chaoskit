@@ -30,6 +30,10 @@ func (r *RecursionDepthValidator) Name() string {
 	return r.name
 }
 
+func (r *RecursionDepthValidator) Severity() chaoskit.ValidationSeverity {
+	return chaoskit.SeverityCritical
+}
+
 func (r *RecursionDepthValidator) Validate(ctx context.Context, target chaoskit.Target) error {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

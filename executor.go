@@ -63,8 +63,8 @@ func WithLogLevel(level slog.Level) ExecutorOption {
 			e.logger = slog.Default()
 		}
 		opts := &slog.HandlerOptions{Level: level}
-		e.logger = slog.New(e.logger.Handler().WithAttrs(nil).(slog.Handler))
-		_ = opts // TODO: apply level to handler
+		e.logger = slog.New(e.logger.Handler().WithAttrs(nil).(slog.Handler)) //nolint:gocritic,staticcheck
+		_ = opts                                                              // TODO: apply level to handler
 	}
 }
 
@@ -533,13 +533,6 @@ func (e *Executor) buildChaosContext(ctx context.Context, injectors []Injector) 
 	}
 
 	return chaos
-}
-
-// log is a helper for backward compatibility (deprecated, use structured logging directly)
-func (e *Executor) log(format string, v ...any) {
-	if e.logger != nil {
-		e.logger.Info(fmt.Sprintf(format, v...))
-	}
 }
 
 // Metrics returns the metrics collector

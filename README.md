@@ -2,6 +2,7 @@
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/rom8726/chaoskit)](https://goreportcard.com/report/github.com/rom8726/chaoskit)
 [![Go Reference](https://pkg.go.dev/badge/github.com/rom8726/chaoskit.svg)](https://pkg.go.dev/github.com/rom8726/chaoskit)
+[![Coverage Status](https://coveralls.io/repos/github/rom8726/chaoskit/badge.svg?branch=main)](https://coveralls.io/github/rom8726/chaoskit?branch=main)
 
 A modular Go framework for chaos engineering, fault injection, and reliability testing of distributed systems, libraries, and services.
 

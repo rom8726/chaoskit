@@ -151,7 +151,7 @@ func main() {
 		// Validators
 		Assert("no_goroutine_leak", validators.GoroutineLimit(200)).
 		Assert("recursion_depth_below_100", validators.RecursionDepthLimit(100)).
-		Assert("no_infinite_loop", validators.NoInfiniteLoop(5*time.Second)).
+		Assert("no_slow_iteration", validators.NoSlowIteration(5*time.Second)).
 		Repeat(50).
 		Build()
 

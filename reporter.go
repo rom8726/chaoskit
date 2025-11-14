@@ -390,7 +390,7 @@ func (r *Reporter) getValidatorSeverity(validatorName string, thresholds *Succes
 // Examples:
 //   - "goroutine_limit_100" -> ValidatorGoroutineLimit
 //   - "recursion_depth_limit_10" -> ValidatorRecursionDepth
-//   - "no_infinite_loop_5s" -> ValidatorInfiniteLoop
+//   - "slow_iteration_5s" -> ValidatorSlowIteration
 //   - "memory_under_100MB" -> ValidatorMemoryLimit
 //   - "no_panics_5" -> ValidatorPanicRecovery
 func normalizeValidatorName(name string) string {
@@ -413,7 +413,7 @@ func normalizeValidatorName(name string) string {
 	mappings := map[string]string{
 		ValidatorGoroutineLimit:      ValidatorGoroutineLimit,
 		ValidatorRecursionDepthLimit: ValidatorRecursionDepth,
-		ValidatorInfiniteLoop:        ValidatorInfiniteLoop,
+		ValidatorSlowIteration:       ValidatorSlowIteration,
 		ValidatorMemoryUnder:         ValidatorMemoryLimit,
 		ValidatorPanics:              ValidatorPanicRecovery,
 		ValidatorExecutionTime:       ValidatorExecutionTime,
@@ -433,8 +433,8 @@ func normalizeValidatorName(name string) string {
 	if strings.Contains(name, "recursion") {
 		return ValidatorRecursionDepth
 	}
-	if strings.Contains(name, "infinite") || strings.Contains(name, "loop") {
-		return ValidatorInfiniteLoop
+	if strings.Contains(name, "slow") || strings.Contains(name, "loop") {
+		return ValidatorSlowIteration
 	}
 	if strings.Contains(name, "memory") {
 		return ValidatorMemoryLimit

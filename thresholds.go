@@ -9,7 +9,7 @@ import (
 const (
 	ValidatorGoroutineLimit      = "goroutine-limit"
 	ValidatorRecursionDepth      = "recursion-depth"
-	ValidatorInfiniteLoop        = "infinite-loop"
+	ValidatorSlowIteration       = "slow-iteration"
 	ValidatorMemoryLimit         = "memory-limit"
 	ValidatorPanicRecovery       = "panic-recovery"
 	ValidatorExecutionTime       = "execution-time"
@@ -36,7 +36,7 @@ type SuccessThresholds struct {
 	MinSuccessRate float64 `json:"min_success_rate" yaml:"min_success_rate"`
 
 	// CriticalValidators lists validators that MUST pass (block release if fail)
-	// Example: [ValidatorGoroutineLimit, ValidatorInfiniteLoop]
+	// Example: [ValidatorGoroutineLimit, ValidatorSlowIteration]
 	CriticalValidators []string `json:"critical_validators" yaml:"critical_validators"`
 
 	// WarningValidators lists validators that produce warnings (don't block)
@@ -64,7 +64,7 @@ func DefaultThresholds() *SuccessThresholds {
 		CriticalValidators: []string{
 			ValidatorGoroutineLimit,
 			ValidatorRecursionDepth,
-			ValidatorInfiniteLoop,
+			ValidatorSlowIteration,
 			ValidatorMemoryLimit,
 		},
 		MaxFailedIterations: 0, // 0 = use MinSuccessRate
@@ -79,7 +79,7 @@ func StrictThresholds() *SuccessThresholds {
 		CriticalValidators: []string{
 			ValidatorGoroutineLimit,
 			ValidatorRecursionDepth,
-			ValidatorInfiniteLoop,
+			ValidatorSlowIteration,
 			ValidatorMemoryLimit,
 			ValidatorPanicRecovery,
 		},

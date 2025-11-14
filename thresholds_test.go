@@ -68,7 +68,7 @@ func TestDefaultThresholds(t *testing.T) {
 	assert.Equal(t, 0.95, thresholds.MinSuccessRate)
 	assert.Contains(t, thresholds.CriticalValidators, "goroutine-limit")
 	assert.Contains(t, thresholds.CriticalValidators, "recursion-depth")
-	assert.Contains(t, thresholds.CriticalValidators, "infinite-loop")
+	assert.Contains(t, thresholds.CriticalValidators, "slow-iteration")
 	assert.Contains(t, thresholds.CriticalValidators, "memory-limit")
 }
 

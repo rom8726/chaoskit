@@ -189,7 +189,7 @@ type MetricsProvider interface {
 // Example implementations:
 //   - GoroutineLimit: Ensures goroutine count stays below threshold
 //   - RecursionDepthLimit: Verifies recursion depth doesn't exceed limit
-//   - NoInfiniteLoop: Detects infinite loops
+//   - NoSlowIteration: Detects slow loops
 //
 // See the validators package for reference implementations.
 type Validator interface {

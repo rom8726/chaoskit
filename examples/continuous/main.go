@@ -385,7 +385,7 @@ func createRandomScenario(engine *ContinuousWorkflowEngine, num int) *chaoskit.S
 			validators: []chaoskit.Validator{
 				validators.RecursionDepthLimit(100),
 				validators.GoroutineLimit(200),
-				validators.NoInfiniteLoop(3 * time.Second),
+				validators.NoSlowIteration(3 * time.Second),
 			},
 			repeat: 10,
 		},

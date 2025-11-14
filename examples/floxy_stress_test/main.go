@@ -14,11 +14,12 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/rom8726/floxy"
+	"github.com/rom8726/floxy/plugins/engine/metrics"
+
 	"github.com/rom8726/chaoskit"
 	"github.com/rom8726/chaoskit/injectors"
 	"github.com/rom8726/chaoskit/validators"
-	"github.com/rom8726/floxy"
-	"github.com/rom8726/floxy/plugins/engine/metrics"
 
 	rolldepth "github.com/rom8726/floxy/plugins/engine/rollback-depth"
 )
@@ -826,7 +827,7 @@ func main() {
 		// Validators
 		Assert("recursion-depth", validators.RecursionDepthLimit(50)).
 		Assert("goroutine-leak", validators.GoroutineLimit(500)).
-		Assert("no-infinite-loop", validators.NoInfiniteLoop(15*time.Second)).
+		Assert("no-slow-iteration", validators.NoSlowIteration(15*time.Second)).
 		RunFor(60 * time.Second). // Run for 1 minute
 		Build()
 

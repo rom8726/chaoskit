@@ -177,11 +177,11 @@ func main() {
 		// Inject delays
 		Inject("delay", injectors.RandomDelay(5*time.Millisecond, 20*time.Millisecond)).
 		// Validators - allow some panics since we recover from them
-		Assert("panic_recovery", validators.NoPanics(20)).                    // Allow up to 20 panics (we have 25 iterations * 5 requests * 0.15 = ~19 expected)
-		Assert("goroutine_limit", validators.GoroutineLimit(500)).            // High limit to allow for retries
-		Assert("recursion_depth", validators.RecursionDepthLimit(50)).        // Reasonable recursion limit
-		Assert("no_infinite_loop", validators.NoInfiniteLoop(2*time.Second)). // Prevent infinite loops
-		Repeat(25).                                                           // 25 iterations to get good statistics
+		Assert("panic_recovery", validators.NoPanics(20)).                      // Allow up to 20 panics (we have 25 iterations * 5 requests * 0.15 = ~19 expected)
+		Assert("goroutine_limit", validators.GoroutineLimit(500)).              // High limit to allow for retries
+		Assert("recursion_depth", validators.RecursionDepthLimit(50)).          // Reasonable recursion limit
+		Assert("no_slow_iteration", validators.NoSlowIteration(2*time.Second)). // Prevent slow iterations
+		Repeat(25).                                                             // 25 iterations to get good statistics
 		Build()
 
 	// Run scenario with executor

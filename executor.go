@@ -230,6 +230,11 @@ func (e *Executor) Run(ctx context.Context, scenario *Scenario) error {
 		return e.runForDuration(ctx, scenario)
 	}
 
+	// Check if repeat is set
+	if scenario.repeat <= 0 {
+		return fmt.Errorf("scenario %s: repeat must be > 0 (got %d), use RunFor() for duration-based execution", scenario.name, scenario.repeat)
+	}
+
 	return e.runRepeated(ctx, scenario)
 }
 
@@ -442,8 +447,10 @@ func (e *Executor) buildChaosContext(ctx context.Context, injectors []Injector) 
 	// Find delay injector
 	for _, inj := range injectors {
 		if delayProvider, ok := inj.(ChaosDelayProvider); ok {
+			// Copy provider to local variable to avoid closure issues
+			dp := delayProvider
 			chaos.delayFunc = func() bool {
-				delay, ok := delayProvider.GetChaosDelay(ctx)
+				delay, ok := dp.GetChaosDelay(ctx)
 				if ok && delay > 0 {
 					GetLogger(ctx).Debug("delay injected in user code",
 						slog.Duration("delay", delay))
@@ -457,10 +464,12 @@ func (e *Executor) buildChaosContext(ctx context.Context, injectors []Injector) 
 		}
 
 		if panicProvider, ok := inj.(ChaosPanicProvider); ok {
+			// Copy provider to local variable to avoid closure issues
+			pp := panicProvider
 			chaos.panicFunc = func() bool {
-				if panicProvider.ShouldChaosPanic() {
+				if pp.ShouldChaosPanic() {
 					GetLogger(ctx).Debug("panic triggered in user code",
-						slog.Float64("probability", panicProvider.GetPanicProbability()))
+						slog.Float64("probability", pp.GetPanicProbability()))
 
 					return true
 				}
@@ -472,13 +481,15 @@ func (e *Executor) buildChaosContext(ctx context.Context, injectors []Injector) 
 
 		// Find network injector
 		if networkProvider, ok := inj.(ChaosNetworkProvider); ok {
+			// Copy provider to local variable to avoid closure issues
+			np := networkProvider
 			chaos.networkFunc = func(host string, port int) bool {
-				if !networkProvider.ShouldApplyNetworkChaos(host, port) {
+				if !np.ShouldApplyNetworkChaos(host, port) {
 					return false
 				}
 
 				// Apply latency if configured
-				if latency, hasLatency := networkProvider.GetNetworkLatency(host, port); hasLatency && latency > 0 {
+				if latency, hasLatency := np.GetNetworkLatency(host, port); hasLatency && latency > 0 {
 					GetLogger(ctx).Debug("network latency injected",
 						slog.String("host", host),
 						slog.Int("port", port),
@@ -489,7 +500,7 @@ func (e *Executor) buildChaosContext(ctx context.Context, injectors []Injector) 
 				}
 
 				// Check for connection drop
-				if networkProvider.ShouldDropConnection(host, port) {
+				if np.ShouldDropConnection(host, port) {
 					GetLogger(ctx).Debug("network connection drop simulated",
 						slog.String("host", host),
 						slog.Int("port", port))
@@ -503,8 +514,10 @@ func (e *Executor) buildChaosContext(ctx context.Context, injectors []Injector) 
 
 		// Find context cancellation injector
 		if cancellationProvider, ok := inj.(ChaosContextCancellationProvider); ok {
+			// Copy provider to local variable to avoid closure issues
+			cp := cancellationProvider
 			chaos.cancellationFunc = func(parent context.Context) (context.Context, context.CancelFunc) {
-				return cancellationProvider.GetChaosContext(parent)
+				return cp.GetChaosContext(parent)
 			}
 		}
 

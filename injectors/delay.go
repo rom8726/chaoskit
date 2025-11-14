@@ -106,6 +106,11 @@ func (d *DelayInjector) Inject(ctx context.Context) error {
 	d.rng = chaoskit.GetRand(ctx)
 
 	if d.mode == IntervalMode {
+		// Ensure delayCond is initialized for IntervalMode
+		if d.delayCond == nil {
+			d.delayCond = sync.NewCond(&d.delayMu)
+		}
+
 		chaoskit.GetLogger(ctx).Info("delay injector started",
 			slog.String("injector", d.name),
 			slog.String("mode", "interval"),
@@ -255,6 +260,15 @@ func (d *DelayInjector) GetChaosDelay(ctx context.Context) (time.Duration, bool)
 	}
 
 	if mode == IntervalMode {
+		// Ensure delayCond is initialized
+		if d.delayCond == nil {
+			d.delayMu.Lock()
+			if d.delayCond == nil {
+				d.delayCond = sync.NewCond(&d.delayMu)
+			}
+			d.delayMu.Unlock()
+		}
+
 		// Wait for delay signal from background goroutine
 		d.delayMu.Lock()
 
@@ -289,7 +303,9 @@ func (d *DelayInjector) GetChaosDelay(ctx context.Context) (time.Duration, bool)
 			// Handle timeout
 			go func() {
 				<-ctx.Done()
-				d.delayCond.Signal() // Wake up to check timeout
+				if d.delayCond != nil {
+					d.delayCond.Signal() // Wake up to check timeout
+				}
 			}()
 
 			for d.activeDelay == 0 {
@@ -301,7 +317,13 @@ func (d *DelayInjector) GetChaosDelay(ctx context.Context) (time.Duration, bool)
 				}
 
 				// Wait for broadcast from delayLoop
-				d.delayCond.Wait()
+				if d.delayCond != nil {
+					d.delayCond.Wait()
+				} else {
+					// If delayCond is nil, break out of loop
+					delayReceived <- 0
+					return
+				}
 
 				if d.activeDelay > 0 {
 					delay := d.activeDelay

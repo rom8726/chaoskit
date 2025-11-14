@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"os"
 	"sync/atomic"
 	"time"
 
@@ -154,11 +155,27 @@ func main() {
 		Repeat(50).
 		Build()
 
-	// Run scenario
+	// Run scenario with executor
 	ctx := context.Background()
-	if err := chaoskit.Run(ctx, scenario); err != nil {
-		log.Fatalf("Scenario failed: %v", err)
+	executor := chaoskit.NewExecutor(
+		chaoskit.WithFailurePolicy(chaoskit.ContinueOnFailure),
+	)
+
+	if err := executor.Run(ctx, scenario); err != nil {
+		log.Printf("Scenario execution completed with errors: %v", err)
 	}
 
-	log.Println("\n=== Test Complete ===")
+	// Get verdict and generate report
+	thresholds := chaoskit.DefaultThresholds()
+	report, err := executor.Reporter().GetVerdict(thresholds)
+	if err != nil {
+		log.Fatalf("Failed to generate report: %v", err)
+	}
+
+	// Print detailed report
+	log.Println("\n=== Chaos Test Report ===")
+	log.Println(executor.Reporter().GenerateTextReport(report))
+
+	// Exit with verdict code
+	os.Exit(report.Verdict.ExitCode())
 }

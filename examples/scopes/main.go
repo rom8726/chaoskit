@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/rom8726/chaoskit"
@@ -79,16 +80,13 @@ func main() {
 	// Create executor and run scenario
 	executor := chaoskit.NewExecutor(
 		chaoskit.WithLogger(log.New(log.Writer(), "[CHAOS] ", log.LstdFlags)),
+		chaoskit.WithFailurePolicy(chaoskit.ContinueOnFailure),
 	)
 
 	fmt.Println("\n=== Running scenario with scopes ===")
 	if err := executor.Run(ctx, scenario); err != nil {
-		log.Fatalf("Scenario execution failed: %v", err)
+		log.Printf("Scenario execution completed with errors: %v", err)
 	}
-
-	// Print metrics
-	metrics := executor.Metrics().Stats()
-	fmt.Printf("\n=== Metrics ===\n%+v\n", metrics)
 
 	// Example 2: Mixed usage (scopes + direct injectors)
 	fmt.Println("\n=== Example 2: Mixed usage ===")
@@ -110,6 +108,24 @@ func main() {
 		Build()
 
 	if err := executor.Run(ctx, scenario2); err != nil {
-		log.Fatalf("Mixed scenario failed: %v", err)
+		log.Printf("Mixed scenario completed with errors: %v", err)
 	}
+
+	// Get verdict and generate report for all scenarios
+	thresholds := chaoskit.DefaultThresholds()
+	report, err := executor.Reporter().GetVerdict(thresholds)
+	if err != nil {
+		log.Fatalf("Failed to generate report: %v", err)
+	}
+
+	// Print metrics
+	metrics := executor.Metrics().Stats()
+	fmt.Printf("\n=== Metrics ===\n%+v\n", metrics)
+
+	// Print detailed report
+	fmt.Println("\n=== Chaos Test Report ===")
+	fmt.Println(executor.Reporter().GenerateTextReport(report))
+
+	// Exit with verdict code
+	os.Exit(report.Verdict.ExitCode())
 }

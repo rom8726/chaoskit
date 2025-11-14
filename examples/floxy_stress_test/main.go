@@ -859,9 +859,16 @@ func main() {
 	// Wait a bit for cleanup
 	time.Sleep(2 * time.Second)
 
-	// Print final report
-	log.Println("\n=== Final Report ===")
-	log.Println(executor.Reporter().GenerateReport())
+	// Get verdict and generate report
+	thresholds := chaoskit.DefaultThresholds()
+	report, err := executor.Reporter().GetVerdict(thresholds)
+	if err != nil {
+		log.Fatalf("Failed to generate report: %v", err)
+	}
+
+	// Print detailed report
+	log.Println("\n=== Final Chaos Test Report ===")
+	log.Println(executor.Reporter().GenerateTextReport(report))
 
 	// Print Floxy stats
 	stats := floxyTarget.GetStats()
@@ -872,4 +879,7 @@ func main() {
 	log.Printf("Rollback count: %d", stats["rollback_count"])
 	log.Printf("Max rollback depth: %d", stats["max_rollback_depth"])
 	log.Printf("Metrics: %+v", stats["metrics"])
+
+	// Exit with verdict code
+	os.Exit(report.Verdict.ExitCode())
 }

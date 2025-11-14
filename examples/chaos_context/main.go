@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"os"
 	"sync/atomic"
 	"time"
 
@@ -175,17 +176,36 @@ func main() {
 		Repeat(20).
 		Build()
 
-	// Run scenario
+	// Run scenario with executor
 	ctx := context.Background()
-	if err := chaoskit.Run(ctx, scenario); err != nil {
-		log.Printf("Scenario completed with errors: %v", err)
+	executor := chaoskit.NewExecutor(
+		chaoskit.WithFailurePolicy(chaoskit.ContinueOnFailure),
+	)
+
+	if err := executor.Run(ctx, scenario); err != nil {
+		log.Printf("Scenario execution completed with errors: %v", err)
 	}
 
-	log.Println("\n=== Test Complete ===")
+	// Get verdict and generate report
+	thresholds := chaoskit.DefaultThresholds()
+	report, err := executor.Reporter().GetVerdict(thresholds)
+	if err != nil {
+		log.Fatalf("Failed to generate report: %v", err)
+	}
+
+	// Print detailed report
+	log.Println("\n=== Chaos Test Report ===")
+	log.Println(executor.Reporter().GenerateTextReport(report))
+
 	log.Println("\nKey Points:")
 	log.Println("1. chaoskit.MaybePanic(ctx) - Call at critical points to allow panic injection")
 	log.Println("2. chaoskit.MaybeDelay(ctx) - Call to inject delays from chaos context")
 	log.Println("3. chaoskit.ShouldFail(ctx, probability) - Use for conditional failures")
 	log.Println("\nThis approach allows chaos to happen INSIDE your code execution,")
 	log.Println("not just before/after steps, making tests more realistic!")
+
+	_ = executor.Reporter().SaveJUnitXML(report, "chaos-context-report.xml")
+
+	// Exit with verdict code
+	os.Exit(report.Verdict.ExitCode())
 }

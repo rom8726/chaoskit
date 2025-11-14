@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/rom8726/chaoskit"
@@ -152,13 +153,27 @@ func main() {
 		Repeat(10).
 		Build()
 
-	// Run scenario
+	// Run scenario with executor
 	ctx := context.Background()
-	if err := chaoskit.Run(ctx, scenario); err != nil {
-		log.Printf("Scenario completed with errors: %v", err)
+	executor := chaoskit.NewExecutor(
+		chaoskit.WithFailurePolicy(chaoskit.ContinueOnFailure),
+	)
+
+	if err := executor.Run(ctx, scenario); err != nil {
+		log.Printf("Scenario execution completed with errors: %v", err)
 	}
 
-	log.Println("\n=== Test Complete ===")
+	// Get verdict and generate report
+	thresholds := chaoskit.DefaultThresholds()
+	report, err := executor.Reporter().GetVerdict(thresholds)
+	if err != nil {
+		log.Fatalf("Failed to generate report: %v", err)
+	}
+
+	// Print detailed report
+	log.Println("\n=== Chaos Test Report ===")
+	log.Println(executor.Reporter().GenerateTextReport(report))
+
 	log.Println("\nKey Points:")
 	log.Println("1. TimeoutInjector - interrupts function execution after timeout")
 	log.Println("2. ErrorInjector - replaces returned errors with simulated errors")
@@ -166,4 +181,7 @@ func main() {
 	log.Println("4. ContextCancellationInjector - cancels contexts randomly")
 	log.Println("\nNote: Monkey patching requires -gcflags=all=-l for correct operation")
 	log.Println("Run: go run -gcflags=all=-l main.go")
+
+	// Exit with verdict code
+	os.Exit(report.Verdict.ExitCode())
 }

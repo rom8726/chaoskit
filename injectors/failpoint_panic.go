@@ -7,9 +7,11 @@ import (
 	"math/rand"
 	"sync"
 	"time"
+
+	"github.com/rom8726/chaoskit"
 )
 
-// GofailPanicInjector toggles named failpoints with panic actions.
+// FailpointPanicInjector toggles named failpoints with panic actions.
 // To use it you must:
 //  1. Instrument your target code with failpoint.Inject("name", func(){ panic("...") }) blocks
 //  2. Build and run with `-tags failpoint`
@@ -20,7 +22,7 @@ import (
 //
 // Note: enabling a failpoint means that any code path hitting it during the enable-window will panic.
 // Choose probability and window cautiously.
-type GofailPanicInjector struct {
+type FailpointPanicInjector struct {
 	name        string
 	failpoints  []string
 	probability float64
@@ -33,13 +35,13 @@ type GofailPanicInjector struct {
 	active  map[string]bool
 }
 
-// GofailPanic creates a new gofail-based panic injector.
+// FailpointPanic creates a new failpoint-based panic injector.
 // names: list of failpoint names placed in the target code via failpoint.Inject.
 // probability: per-tick probability to enable each failpoint.
 // window: how long an enabled failpoint remains active before auto-disable. Also used as the tick interval.
-func GofailPanic(names []string, probability float64, window time.Duration) *GofailPanicInjector {
-	return &GofailPanicInjector{
-		name:        fmt.Sprintf("gofail_panic_%d_pts_p%.2f", len(names), probability),
+func FailpointPanic(names []string, probability float64, window time.Duration) *FailpointPanicInjector {
+	return &FailpointPanicInjector{
+		name:        fmt.Sprintf("failpoint_panic_%d_pts_p%.2f", len(names), probability),
 		failpoints:  append([]string(nil), names...),
 		probability: probability,
 		interval:    window,
@@ -49,13 +51,13 @@ func GofailPanic(names []string, probability float64, window time.Duration) *Gof
 	}
 }
 
-func (g *GofailPanicInjector) Name() string { return g.name }
+func (f *FailpointPanicInjector) Name() string { return f.name }
 
-func (g *GofailPanicInjector) Inject(ctx context.Context) error {
-	g.mu.Lock()
-	defer g.mu.Unlock()
+func (f *FailpointPanicInjector) Inject(ctx context.Context) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 
-	if g.stopped {
+	if f.stopped {
 		return fmt.Errorf("injector already stopped")
 	}
 
@@ -67,7 +69,7 @@ func (g *GofailPanicInjector) Inject(ctx context.Context) error {
 	}
 
 	// Start background toggler
-	interval := g.interval
+	interval := f.interval
 	if interval <= 0 {
 		interval = 250 * time.Millisecond
 	}
@@ -76,10 +78,10 @@ func (g *GofailPanicInjector) Inject(ctx context.Context) error {
 		defer ticker.Stop()
 		for {
 			select {
-			case <-g.stopCh:
+			case <-f.stopCh:
 				return
 			case <-ticker.C:
-				g.tickOnce()
+				f.tickOnce()
 			}
 		}
 	}()
@@ -87,43 +89,71 @@ func (g *GofailPanicInjector) Inject(ctx context.Context) error {
 	return nil
 }
 
-func (g *GofailPanicInjector) tickOnce() {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	for _, fp := range g.failpoints {
-		if rand.Float64() < g.probability && !g.active[fp] {
+func (f *FailpointPanicInjector) tickOnce() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, fp := range f.failpoints {
+		if rand.Float64() < f.probability && !f.active[fp] {
 			// Enable panic action for this failpoint for a window
-			action := fmt.Sprintf(`panic("chaoskit gofail: %s")`, fp)
+			action := fmt.Sprintf(`panic("chaoskit failpoint: %s")`, fp)
 			if err := enableFailpoint(fp, action); err == nil {
-				g.active[fp] = true
-				win := g.window
+				f.active[fp] = true
+				win := f.window
 				if win <= 0 {
 					win = 250 * time.Millisecond
 				}
 				time.AfterFunc(win, func() {
-					g.mu.Lock()
-					defer g.mu.Unlock()
+					f.mu.Lock()
+					defer f.mu.Unlock()
 					_ = disableFailpoint(fp)
-					g.active[fp] = false
+					f.active[fp] = false
 				})
 			}
 		}
 	}
 }
 
-func (g *GofailPanicInjector) Stop(ctx context.Context) error {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	if !g.stopped {
-		close(g.stopCh)
-		g.stopped = true
-		for fp, en := range g.active {
+func (f *FailpointPanicInjector) Stop(ctx context.Context) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if !f.stopped {
+		close(f.stopCh)
+		f.stopped = true
+		for fp, en := range f.active {
 			if en {
 				_ = disableFailpoint(fp)
-				g.active[fp] = false
+				f.active[fp] = false
 			}
 		}
 	}
 
 	return nil
+}
+
+// Type implements CategorizedInjector
+func (f *FailpointPanicInjector) Type() chaoskit.InjectorType {
+	return chaoskit.InjectorTypeGlobal // Works globally via failpoint runtime
+}
+
+// GetMetrics implements MetricsProvider
+func (f *FailpointPanicInjector) GetMetrics() map[string]interface{} {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	activeCount := 0
+	for _, active := range f.active {
+		if active {
+			activeCount++
+		}
+	}
+
+	return map[string]interface{}{
+		"failpoints":       f.failpoints,
+		"probability":      f.probability,
+		"interval":         f.interval.String(),
+		"window":           f.window.String(),
+		"active_count":     activeCount,
+		"total_failpoints": len(f.failpoints),
+		"stopped":          f.stopped,
+	}
 }

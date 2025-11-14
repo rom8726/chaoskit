@@ -81,7 +81,7 @@ This makes ChaosKit ideal for new projects or when you can modify the code being
 - Latency, bandwidth, timeout, and packet slicing
 - Optional proxy setup for database connections
 
-**Gofail Support**: Failpoint-based injection for production-safe testing
+**Failpoint Support**: Failpoint-based injection for production-safe testing
 - Compile-time injection points via `failpoint.Inject`
 - Requires `-tags failpoint` build flag
 
@@ -108,7 +108,7 @@ require github.com/rom8726/chaoskit v1.0.0
 - Go 1.25 or later
 - **Important**: Most chaos injection requires **modifying your code** (see "Injection Methods" section)
 - For monkey patching: Build with `-gcflags=all=-l` (not recommended, see limitations)
-- For gofail: Build with `-tags failpoint` and instrument code with `failpoint.Inject()`
+- For failpoint: Build with `-tags failpoint` and instrument code with `failpoint.Inject()`
 - For ToxiProxy: ToxiProxy server running (this is the only method that works without code changes)
 
 ## When to Use ChaosKit
@@ -386,7 +386,7 @@ func main() {
 
 **Basic Injectors**:
 - **DelayInjector**: Random latency (probability-based or interval-based modes)
-- **PanicInjector**: Random panics to test recovery mechanisms
+- **PanicInjector**: Random panics via `MaybePanic(ctx)` to test recovery mechanisms
 - **CPUInjector**: CPU stress under load
 - **MemoryInjector**: Memory pressure simulation
 
@@ -401,7 +401,7 @@ func main() {
 **Advanced Injectors**:
 - **MonkeyPatchPanicInjector**: Runtime function patching for panic injection
 - **MonkeyPatchDelayInjector**: Runtime function patching for delay injection
-- **GofailPanicInjector**: Failpoint-based panic injection (requires `-tags failpoint`)
+- **FailpointPanicInjector**: Failpoint-based panic injection (requires `-tags failpoint`)
 
 **CompositeInjector**: Combines multiple injectors for complex failure scenarios
 
@@ -567,7 +567,7 @@ The `examples/` directory contains complete working demonstrations:
 
 **toxiproxy**: Network chaos testing with ToxiProxy (latency, bandwidth, timeouts)
 
-**floxy_stress_test**: Comprehensive stress test with monkey patching, gofail, and ToxiProxy
+**floxy_stress_test**: Comprehensive stress test with monkey patching, failpoint, and ToxiProxy
 
 Build and run examples:
 

@@ -761,7 +761,7 @@ func main() {
 		"inventory-handler-panic",
 		"shipping-handler-panic",
 	}
-	gofailInjector := injectors.GofailPanic(failpointNames, 0.03, 500*time.Millisecond)
+	failpointInjector := injectors.FailpointPanic(failpointNames, 0.03, 500*time.Millisecond)
 
 	// 3. ToxiProxy injectors for database network chaos
 	var latencyInjector *injectors.ToxiProxyLatencyInjector
@@ -801,16 +801,16 @@ func main() {
 		Inject("monkey-panic", monkeyPanicInjector).
 		Inject("monkey-delay", monkeyDelayInjector)
 
-	// Gofail injector (may fail if not built with -tags failpoint)
-	if err := gofailInjector.Inject(ctx); err != nil {
+	// Failpoint injector (may fail if not built with -tags failpoint)
+	if err := failpointInjector.Inject(ctx); err != nil {
 		if err == injectors.ErrFailpointDisabled {
-			log.Println("[Warning] Gofail injector disabled (build with -tags failpoint to enable)")
+			log.Println("[Warning] Failpoint injector disabled (build with -tags failpoint to enable)")
 		} else {
-			log.Printf("[Warning] Gofail injector error: %v", err)
+			log.Printf("[Warning] Failpoint injector error: %v", err)
 		}
 	} else {
-		log.Println("[Setup] Gofail injector enabled")
-		scenarioBuilder = scenarioBuilder.Inject("gofail-panic", gofailInjector)
+		log.Println("[Setup] Failpoint injector enabled")
+		scenarioBuilder = scenarioBuilder.Inject("failpoint-panic", failpointInjector)
 	}
 
 	// ToxiProxy injectors (conditional)

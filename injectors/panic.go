@@ -3,10 +3,8 @@ package injectors
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"math/rand"
 	"sync"
-	"time"
 
 	"github.com/rom8726/chaoskit"
 )
@@ -16,7 +14,6 @@ type PanicInjector struct {
 	name        string
 	probability float64
 	mu          sync.Mutex
-	stopCh      chan struct{}
 	stopped     bool
 	rng         *rand.Rand // Deterministic random generator from context
 }
@@ -26,7 +23,6 @@ func PanicProbability(probability float64) *PanicInjector {
 	return &PanicInjector{
 		name:        fmt.Sprintf("panic_injector_%.2f", probability),
 		probability: probability,
-		stopCh:      make(chan struct{}),
 	}
 }
 
@@ -45,30 +41,6 @@ func (p *PanicInjector) Inject(ctx context.Context) error {
 	// Store deterministic random generator from context
 	p.rng = chaoskit.GetRand(ctx)
 
-	// Start background panic injection
-	go func() {
-		ticker := time.NewTicker(100 * time.Millisecond)
-		defer ticker.Stop()
-
-		for {
-			select {
-			case <-p.stopCh:
-				return
-			case <-ticker.C:
-				p.mu.Lock()
-				rng := p.rng
-				prob := p.probability
-				p.mu.Unlock()
-				if rng.Float64() < prob {
-					// TODO: use gofail
-					chaoskit.GetLogger(ctx).Debug("panic injected",
-						slog.String("injector", p.name),
-						slog.Float64("probability", prob))
-				}
-			}
-		}
-	}()
-
 	return nil
 }
 
@@ -76,44 +48,8 @@ func (p *PanicInjector) Stop(ctx context.Context) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	if !p.stopped {
-		close(p.stopCh)
-		p.stopped = true
-	}
+	p.stopped = true
 
-	return nil
-}
-
-// BeforeStep injects a panic before step execution based on probability
-func (p *PanicInjector) BeforeStep(ctx context.Context) error {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	if p.stopped {
-		return nil
-	}
-
-	// Use deterministic generator from context if available, otherwise use stored one
-	rng := chaoskit.GetRand(ctx)
-	if rng == nil {
-		rng = p.rng
-	}
-	if rng == nil {
-		rng = rand.New(rand.NewSource(rand.Int63()))
-	}
-
-	if rng.Float64() < p.probability {
-		chaoskit.GetLogger(ctx).Debug("injecting panic",
-			slog.String("injector", p.name),
-			slog.Float64("probability", p.probability))
-		panic("chaos: injected panic")
-	}
-
-	return nil
-}
-
-// AfterStep is called after step execution (no-op for panic injector)
-func (p *PanicInjector) AfterStep(ctx context.Context, err error) error {
 	return nil
 }
 
@@ -145,7 +81,7 @@ func (p *PanicInjector) GetPanicProbability() float64 {
 
 // Type implements CategorizedInjector
 func (p *PanicInjector) Type() chaoskit.InjectorType {
-	return chaoskit.InjectorTypeHybrid // Works both as StepInjector and ChaosPanicProvider
+	return chaoskit.InjectorTypeContext // Works via MaybePanic() in user code
 }
 
 // GetMetrics implements MetricsProvider

@@ -157,7 +157,7 @@ stateDiagram-v2
         Injectors can be:
         - Global (CPU, Memory)
         - Context-based (Delay, Panic)
-        - Step-based (BeforeStep/AfterStep)
+        - Step-based (BeforeStep/AfterStep, e.g. DelayInjector)
         - Hybrid (Network)
     end note
 ```
@@ -238,7 +238,7 @@ graph TB
     Context --> Cancellation[ContextCancellationInjector]
     
     Step --> StepDelay[DelayInjector<br/>BeforeStep/AfterStep]
-    Step --> StepPanic[PanicInjector<br/>BeforeStep]
+    Step --> ContextPanic[PanicInjector<br/>via MaybePanic()]
     
     Hybrid --> NetworkContextual[ContextualNetworkInjector]
     

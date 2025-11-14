@@ -3,22 +3,18 @@ package injectors
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/rom8726/chaoskit"
 )
 
-func TestPanicInjector_BeforeStepPanicsAtProbabilityOne(t *testing.T) {
+func TestPanicInjector_MaybePanicWorks(t *testing.T) {
 	p := PanicProbability(1.0)
+	_ = p.Inject(context.Background())
 
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatalf("expected panic, got none")
-		}
-	}()
-
-	// BeforeStep should panic almost surely when probability=1
-	_ = p.BeforeStep(context.Background())
+	// ShouldChaosPanic should return true when probability=1
+	if !p.ShouldChaosPanic() {
+		t.Fatalf("expected ShouldChaosPanic to return true when probability=1")
+	}
 }
 
 func TestPanicInjector_NameTypeMetrics(t *testing.T) {
@@ -26,9 +22,9 @@ func TestPanicInjector_NameTypeMetrics(t *testing.T) {
 	if got := p.Name(); got == "" {
 		t.Fatalf("expected non-empty name")
 	}
-	// Type should be hybrid
-	if got := p.Type(); got != chaoskit.InjectorTypeHybrid {
-		t.Fatalf("unexpected type: %v", got)
+	// Type should be context-based
+	if got := p.Type(); got != chaoskit.InjectorTypeContext {
+		t.Fatalf("unexpected type: %v, want InjectorTypeContext", got)
 	}
 	if prob := p.GetPanicProbability(); prob != 0.3 {
 		t.Fatalf("expected prob=0.3, got %v", prob)
@@ -57,8 +53,6 @@ func TestPanicInjector_ShouldChaosPanicRespectsStopped(t *testing.T) {
 	// Start and then stop
 	_ = p.Inject(context.Background())
 	_ = p.Stop(context.Background())
-	// Give goroutine a tick to observe stop
-	time.Sleep(10 * time.Millisecond)
 	if p.ShouldChaosPanic() {
 		t.Fatalf("should not panic when stopped")
 	}

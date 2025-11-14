@@ -5,6 +5,30 @@ import (
 	"time"
 )
 
+// Validator identifiers
+const (
+	ValidatorGoroutineLimit      = "goroutine-limit"
+	ValidatorRecursionDepth      = "recursion-depth"
+	ValidatorInfiniteLoop        = "infinite-loop"
+	ValidatorMemoryLimit         = "memory-limit"
+	ValidatorPanicRecovery       = "panic-recovery"
+	ValidatorExecutionTime       = "execution-time"
+	ValidatorRecursionDepthLimit = "recursion-depth-limit"
+	ValidatorMemoryUnder         = "memory-under"
+	ValidatorPanics              = "panics"
+)
+
+// Error type identifiers
+const (
+	ErrorTypeGoroutineLeak = "goroutine-leak"
+	ErrorTypePanic         = "panic"
+	ErrorTypeRecursion     = "recursion"
+	ErrorTypeTimeout       = "timeout"
+	ErrorTypeMemory        = "memory"
+	ErrorTypeOther         = "other"
+	ErrorTypeUnknown       = "unknown"
+)
+
 // SuccessThresholds defines criteria for test success
 type SuccessThresholds struct {
 	// MinSuccessRate is minimum acceptable success rate (0.0-1.0)
@@ -12,11 +36,11 @@ type SuccessThresholds struct {
 	MinSuccessRate float64 `json:"min_success_rate" yaml:"min_success_rate"`
 
 	// CriticalValidators lists validators that MUST pass (block release if fail)
-	// Example: ["goroutine-limit", "infinite-loop"]
+	// Example: [ValidatorGoroutineLimit, ValidatorInfiniteLoop]
 	CriticalValidators []string `json:"critical_validators" yaml:"critical_validators"`
 
 	// WarningValidators lists validators that produce warnings (don't block)
-	// Example: ["execution-time", "memory-pressure"]
+	// Example: [ValidatorExecutionTime, "memory-pressure"]
 	WarningValidators []string `json:"warning_validators,omitempty" yaml:"warning_validators,omitempty"`
 
 	// MaxFailedIterations is maximum number of failed iterations allowed
@@ -38,10 +62,10 @@ func DefaultThresholds() *SuccessThresholds {
 	return &SuccessThresholds{
 		MinSuccessRate: 0.95, // 95%
 		CriticalValidators: []string{
-			"goroutine-limit",
-			"recursion-depth",
-			"infinite-loop",
-			"memory-limit",
+			ValidatorGoroutineLimit,
+			ValidatorRecursionDepth,
+			ValidatorInfiniteLoop,
+			ValidatorMemoryLimit,
 		},
 		MaxFailedIterations: 0, // 0 = use MinSuccessRate
 	}
@@ -53,11 +77,11 @@ func StrictThresholds() *SuccessThresholds {
 		MinSuccessRate:              1.0, // 100%
 		RequireAllValidatorsPassing: true,
 		CriticalValidators: []string{
-			"goroutine-limit",
-			"recursion-depth",
-			"infinite-loop",
-			"memory-limit",
-			"panic-recovery",
+			ValidatorGoroutineLimit,
+			ValidatorRecursionDepth,
+			ValidatorInfiniteLoop,
+			ValidatorMemoryLimit,
+			ValidatorPanicRecovery,
 		},
 	}
 }
@@ -66,7 +90,7 @@ func StrictThresholds() *SuccessThresholds {
 func RelaxedThresholds() *SuccessThresholds {
 	return &SuccessThresholds{
 		MinSuccessRate:      0.80, // 80%
-		CriticalValidators:  []string{"goroutine-limit"},
+		CriticalValidators:  []string{ValidatorGoroutineLimit},
 		MaxFailedIterations: 200,
 	}
 }

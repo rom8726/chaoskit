@@ -365,7 +365,7 @@ func (r *Reporter) categorizeFailures(severity ValidationSeverity, thresholds *S
 
 // getValidatorSeverity determines validator severity from thresholds
 func (r *Reporter) getValidatorSeverity(validatorName string, thresholds *SuccessThresholds) ValidationSeverity {
-	// Normalize validator name for matching (e.g., "goroutine_limit_100" -> "goroutine-limit")
+	// Normalize validator name for matching (e.g., "goroutine_limit_100" -> ValidatorGoroutineLimit)
 	normalizedName := normalizeValidatorName(validatorName)
 
 	// Check if critical
@@ -388,11 +388,11 @@ func (r *Reporter) getValidatorSeverity(validatorName string, thresholds *Succes
 
 // normalizeValidatorName converts validator names to canonical form for matching
 // Examples:
-//   - "goroutine_limit_100" -> "goroutine-limit"
-//   - "recursion_depth_limit_10" -> "recursion-depth"
-//   - "no_infinite_loop_5s" -> "infinite-loop"
-//   - "memory_under_100MB" -> "memory-limit"
-//   - "no_panics_5" -> "panic-recovery"
+//   - "goroutine_limit_100" -> ValidatorGoroutineLimit
+//   - "recursion_depth_limit_10" -> ValidatorRecursionDepth
+//   - "no_infinite_loop_5s" -> ValidatorInfiniteLoop
+//   - "memory_under_100MB" -> ValidatorMemoryLimit
+//   - "no_panics_5" -> ValidatorPanicRecovery
 func normalizeValidatorName(name string) string {
 	name = strings.ToLower(name)
 
@@ -411,12 +411,12 @@ func normalizeValidatorName(name string) string {
 
 	// Handle specific mappings
 	mappings := map[string]string{
-		"goroutine-limit":       "goroutine-limit",
-		"recursion-depth-limit": "recursion-depth",
-		"infinite-loop":         "infinite-loop",
-		"memory-under":          "memory-limit",
-		"panics":                "panic-recovery",
-		"execution-time":        "execution-time",
+		ValidatorGoroutineLimit:      ValidatorGoroutineLimit,
+		ValidatorRecursionDepthLimit: ValidatorRecursionDepth,
+		ValidatorInfiniteLoop:        ValidatorInfiniteLoop,
+		ValidatorMemoryUnder:         ValidatorMemoryLimit,
+		ValidatorPanics:              ValidatorPanicRecovery,
+		ValidatorExecutionTime:       ValidatorExecutionTime,
 	}
 
 	// Check if name matches any mapping key
@@ -428,22 +428,22 @@ func normalizeValidatorName(name string) string {
 
 	// If name contains key parts, map them
 	if strings.Contains(name, "goroutine") {
-		return "goroutine-limit"
+		return ValidatorGoroutineLimit
 	}
 	if strings.Contains(name, "recursion") {
-		return "recursion-depth"
+		return ValidatorRecursionDepth
 	}
 	if strings.Contains(name, "infinite") || strings.Contains(name, "loop") {
-		return "infinite-loop"
+		return ValidatorInfiniteLoop
 	}
 	if strings.Contains(name, "memory") {
-		return "memory-limit"
+		return ValidatorMemoryLimit
 	}
 	if strings.Contains(name, "panic") {
-		return "panic-recovery"
+		return ValidatorPanicRecovery
 	}
 	if strings.Contains(name, "execution") || strings.Contains(name, "time") {
-		return "execution-time"
+		return ValidatorExecutionTime
 	}
 
 	return name
@@ -461,24 +461,24 @@ func extractValidatorName(err error) string {
 		}
 	}
 
-	return "unknown"
+	return ErrorTypeUnknown
 }
 
 func classifyError(err error) string {
 	msg := strings.ToLower(err.Error())
 	switch {
 	case strings.Contains(msg, "goroutine"):
-		return "goroutine-leak"
+		return ErrorTypeGoroutineLeak
 	case strings.Contains(msg, "panic"):
-		return "panic"
+		return ErrorTypePanic
 	case strings.Contains(msg, "recursion"):
-		return "recursion"
+		return ErrorTypeRecursion
 	case strings.Contains(msg, "timeout"):
-		return "timeout"
+		return ErrorTypeTimeout
 	case strings.Contains(msg, "memory"):
-		return "memory"
+		return ErrorTypeMemory
 	default:
-		return "other"
+		return ErrorTypeOther
 	}
 }
 

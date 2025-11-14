@@ -322,6 +322,7 @@ func (d *DelayInjector) GetChaosDelay(ctx context.Context) (time.Duration, bool)
 				} else {
 					// If delayCond is nil, break out of loop
 					delayReceived <- 0
+
 					return
 				}
 

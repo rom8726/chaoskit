@@ -232,7 +232,8 @@ func (e *Executor) Run(ctx context.Context, scenario *Scenario) error {
 
 	// Check if repeat is set
 	if scenario.repeat <= 0 {
-		return fmt.Errorf("scenario %s: repeat must be > 0 (got %d), use RunFor() for duration-based execution", scenario.name, scenario.repeat)
+		return fmt.Errorf("scenario %s: repeat must be > 0 (got %d), use RunFor() for duration-based execution",
+			scenario.name, scenario.repeat)
 	}
 
 	return e.runRepeated(ctx, scenario)

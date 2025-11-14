@@ -103,6 +103,20 @@ func NewExecutor(opts ...ExecutorOption) *Executor {
 // internal event recorder that forwards to validators
 type validatorEventRecorder struct{ validators []Validator }
 
+// wrappedStep is a helper type that wraps a function to implement the Step interface
+type wrappedStep struct {
+	name    string
+	execute func(ctx context.Context, target Target) error
+}
+
+func (w *wrappedStep) Name() string {
+	return w.name
+}
+
+func (w *wrappedStep) Execute(ctx context.Context, target Target) error {
+	return w.execute(ctx, target)
+}
+
 func (r *validatorEventRecorder) RecordPanic(ctx context.Context) {
 	for _, v := range r.validators {
 		if pr, ok := v.(PanicRecorder); ok {
@@ -398,8 +412,22 @@ func (e *Executor) executeOnce(ctx context.Context, scenario *Scenario) Executio
 				}
 			}
 
-			// Execute step
-			stepErr := step.Execute(ctx, scenario.target)
+			// Apply step wrappers from validators
+			// Wrappers are applied in reverse order so the first wrapper becomes the outermost
+			wrappedStepFunc := func(ctx context.Context, target Target) error {
+				return step.Execute(ctx, target)
+			}
+			for j := len(scenario.validators) - 1; j >= 0; j-- {
+				if wrapper, ok := scenario.validators[j].(StepWrapper); ok {
+					wrappedStepFunc = wrapper.WrapStep(&wrappedStep{
+						name:    step.Name(),
+						execute: wrappedStepFunc,
+					})
+				}
+			}
+
+			// Execute wrapped step
+			stepErr := wrappedStepFunc(ctx, scenario.target)
 
 			// Apply injectors after step
 			for _, inj := range allInjectors {

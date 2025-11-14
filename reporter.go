@@ -393,11 +393,13 @@ func (r *Reporter) getValidatorSeverity(validatorName string, thresholds *Succes
 //   - "slow_iteration_5s" -> ValidatorSlowIteration
 //   - "memory_under_100MB" -> ValidatorMemoryLimit
 //   - "no_panics_5" -> ValidatorPanicRecovery
+//   - "no_infinite_loop_200ms" -> ValidatorInfiniteLoop
 func normalizeValidatorName(name string) string {
 	name = strings.ToLower(name)
 
 	// Remove numeric suffixes and common prefixes
-	re := regexp.MustCompile(`_\d+[a-z]*$`)
+	// Handle both underscore and hyphen separators (e.g., "no_infinite_loop_200ms" or "infinite-loop-200ms")
+	re := regexp.MustCompile(`[_-]\d+[a-z]*$`)
 	name = re.ReplaceAllString(name, "")
 
 	// Remove common prefixes
@@ -417,6 +419,7 @@ func normalizeValidatorName(name string) string {
 		ValidatorMemoryUnder:         ValidatorMemoryLimit,
 		ValidatorPanics:              ValidatorPanicRecovery,
 		ValidatorExecutionTime:       ValidatorExecutionTime,
+		ValidatorInfiniteLoop:        ValidatorInfiniteLoop,
 	}
 
 	// Check if name matches any mapping key
@@ -433,8 +436,11 @@ func normalizeValidatorName(name string) string {
 	if strings.Contains(name, "recursion") {
 		return ValidatorRecursionDepth
 	}
-	if strings.Contains(name, "slow") || strings.Contains(name, "loop") {
+	if strings.Contains(name, "slow") {
 		return ValidatorSlowIteration
+	}
+	if strings.Contains(name, "infinite") && strings.Contains(name, "loop") {
+		return ValidatorInfiniteLoop
 	}
 	if strings.Contains(name, "memory") {
 		return ValidatorMemoryLimit
@@ -473,6 +479,8 @@ func classifyError(err error) string {
 		return ErrorTypePanic
 	case strings.Contains(msg, "recursion"):
 		return ErrorTypeRecursion
+	case strings.Contains(msg, "infinite loop") || (strings.Contains(msg, "infinite") && strings.Contains(msg, "loop")):
+		return ErrorTypeTimeout
 	case strings.Contains(msg, "timeout"):
 		return ErrorTypeTimeout
 	case strings.Contains(msg, "memory"):

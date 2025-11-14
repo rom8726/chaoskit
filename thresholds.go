@@ -16,6 +16,7 @@ const (
 	ValidatorRecursionDepthLimit = "recursion-depth-limit"
 	ValidatorMemoryUnder         = "memory-under"
 	ValidatorPanics              = "panics"
+	ValidatorInfiniteLoop        = "infinite-loop"
 )
 
 // Error type identifiers
@@ -66,6 +67,7 @@ func DefaultThresholds() *SuccessThresholds {
 			ValidatorRecursionDepth,
 			ValidatorSlowIteration,
 			ValidatorMemoryLimit,
+			ValidatorInfiniteLoop,
 		},
 		MaxFailedIterations: 0, // 0 = use MinSuccessRate
 	}
@@ -82,6 +84,7 @@ func StrictThresholds() *SuccessThresholds {
 			ValidatorSlowIteration,
 			ValidatorMemoryLimit,
 			ValidatorPanicRecovery,
+			ValidatorInfiniteLoop,
 		},
 	}
 }

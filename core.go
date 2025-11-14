@@ -206,6 +206,21 @@ type Resettable interface {
 	Reset()
 }
 
+// StepWrapper is implemented by validators that can wrap step execution.
+// This allows validators to intercept and modify step behavior, such as
+// adding timeouts, monitoring, or other cross-cutting concerns.
+//
+// WrapStep receives a step and returns a wrapped version that will be
+// executed instead of the original step. The wrapper function receives
+// the same context and target as the original step.
+//
+// Example use cases:
+//   - InfiniteLoopValidator: Wraps steps with timeout to detect hung steps
+//   - PerformanceMonitor: Wraps steps to measure execution time
+type StepWrapper interface {
+	WrapStep(step Step) func(ctx context.Context, target Target) error
+}
+
 // Logger is deprecated. Use *slog.Logger instead.
 // This type is kept for backward compatibility but will be removed in a future version.
 type Logger interface {

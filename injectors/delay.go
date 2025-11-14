@@ -32,7 +32,7 @@ type DelayInjector struct {
 
 	// For IntervalMode synchronization
 	delayCond   *sync.Cond    // condition variable for signaling delays
-	initOnce    sync.Once     // ensures delayCond is initialized only once (FIXED)
+	initOnce    sync.Once     // ensures delayCond is initialized only once
 	activeDelay time.Duration // current delay to apply (protected by delayMu)
 	delayMu     sync.Mutex    // mutex for delay state
 	mu          sync.Mutex
@@ -108,7 +108,7 @@ func (d *DelayInjector) Inject(ctx context.Context) error {
 	d.rng = chaoskit.GetRand(ctx)
 
 	if d.mode == IntervalMode {
-		// Ensure delayCond is initialized using sync.Once - thread-safe (FIXED)
+		// Ensure delayCond is initialized using sync.Once - thread-safe
 		d.initOnce.Do(func() {
 			d.delayCond = sync.NewCond(&d.delayMu)
 		})

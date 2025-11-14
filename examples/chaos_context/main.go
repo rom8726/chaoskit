@@ -19,6 +19,7 @@ type WorkflowEngineWithChaos struct {
 	executionCount atomic.Int64
 	rollbackCount  atomic.Int64
 	panicCount     atomic.Int64
+	errorCount     atomic.Int64
 	maxDepth       int
 	currentDepth   atomic.Int32
 }
@@ -87,14 +88,15 @@ func (w *WorkflowEngineWithChaos) executeStep(ctx context.Context, step string, 
 	// This allows ChaosKit to inject panics INSIDE your logic
 	chaoskit.MaybePanic(ctx)
 
-	// Simulate work with potential chaos delay
-	// Option 1: Use MaybeDelay to inject delay from chaos context
-	chaoskit.MaybeDelay(ctx)
+	if err := chaoskit.MaybeError(ctx); err != nil {
+		w.errorCount.Add(1)
 
-	// Option 2: Use ShouldFail to simulate failures
-	if chaoskit.ShouldFail(ctx, 0.1) {
-		return fmt.Errorf("step %s failed (chaos-induced)", step)
+		return err
 	}
+
+	// Simulate work with potential chaos delay.
+	// Use MaybeDelay to inject delay from a chaos context
+	chaoskit.MaybeDelay(ctx)
 
 	// Normal work simulation
 	time.Sleep(time.Millisecond * time.Duration(5+rand.Intn(10)))
@@ -168,6 +170,7 @@ func main() {
 			30*time.Millisecond,
 			50*time.Millisecond,
 		)).
+		Inject("error", injectors.ErrorWithProbability("injected error", 0.1)).
 		Inject("panic", injectors.PanicProbability(0.05)). // 5% chance of panic
 		// Validators
 		Assert("no_goroutine_leak", validators.GoroutineLimit(200)).

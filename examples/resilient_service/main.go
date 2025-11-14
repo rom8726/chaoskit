@@ -86,10 +86,10 @@ func (s *ResilientService) ProcessRequest(ctx context.Context) error {
 	chaoskit.MaybePanic(ctx)
 
 	// Simulate potential error (but we handle it)
-	if chaoskit.ShouldFail(ctx, 0.1) { // 10% chance of error
+	if err := chaoskit.MaybeError(ctx); err != nil {
 		s.errorCount.Add(1)
 		// Return error but don't panic - this is expected behavior
-		return fmt.Errorf("simulated processing error (handled gracefully)")
+		return err
 	}
 
 	// Success case
@@ -117,7 +117,7 @@ func (s *ResilientService) ProcessRequestWithRetry(ctx context.Context, maxRetri
 			chaoskit.MaybeDelay(ctx)
 
 			// Simulate work
-			if chaoskit.ShouldFail(ctx, 0.15) { // 15% chance of error
+			if err := chaoskit.MaybeError(ctx); err != nil { // 15% chance of error
 				return fmt.Errorf("temporary error on attempt %d", attempt+1)
 			}
 

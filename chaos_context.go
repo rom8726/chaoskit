@@ -108,6 +108,27 @@ func MaybeNetworkChaos(ctx context.Context, host string, port int) {
 	}
 }
 
+// MaybeCancelContext creates a child context with possible cancellation
+// User code should use this to wrap contexts that should be subject to cancellation chaos
+func MaybeCancelContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	chaos := GetChaos(ctx)
+	if chaos == nil {
+		// No chaos context, just return parent context with no-op cancel
+		return ctx, func() {}
+	}
+
+	chaos.mu.RLock()
+	cancellationFunc := chaos.cancellationFunc
+	chaos.mu.RUnlock()
+
+	if cancellationFunc != nil {
+		return cancellationFunc(ctx)
+	}
+
+	// No cancellation provider, return parent context
+	return ctx, func() {}
+}
+
 // ApplyChaos applies a chaos provider by name
 func ApplyChaos(ctx context.Context, providerName string) bool {
 	chaos := GetChaos(ctx)
@@ -163,38 +184,4 @@ func GetRand(ctx context.Context) *rand.Rand {
 
 	// Fallback to global random if no generator in context
 	return rand.New(rand.NewSource(rand.Int63()))
-}
-
-// ShouldFail returns true with given probability
-// User code can use this to simulate failures
-func ShouldFail(ctx context.Context, probability float64) bool {
-	chaos := GetChaos(ctx)
-	if chaos == nil {
-		return false
-	}
-
-	rng := GetRand(ctx)
-
-	return rng.Float64() < probability
-}
-
-// MaybeCancelContext creates a child context with possible cancellation
-// User code should use this to wrap contexts that should be subject to cancellation chaos
-func MaybeCancelContext(ctx context.Context) (context.Context, context.CancelFunc) {
-	chaos := GetChaos(ctx)
-	if chaos == nil {
-		// No chaos context, just return parent context with no-op cancel
-		return ctx, func() {}
-	}
-
-	chaos.mu.RLock()
-	cancellationFunc := chaos.cancellationFunc
-	chaos.mu.RUnlock()
-
-	if cancellationFunc != nil {
-		return cancellationFunc(ctx)
-	}
-
-	// No cancellation provider, return parent context
-	return ctx, func() {}
 }

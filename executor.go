@@ -492,6 +492,21 @@ func (e *Executor) buildChaosContext(ctx context.Context, injectors []Injector) 
 			}
 		}
 
+		if panicProvider, ok := inj.(ChaosErrorProvider); ok {
+			// Copy provider to local variable to avoid closure issues
+			pp := panicProvider
+			chaos.errorFunc = func() error {
+				if err := pp.ShouldReturnError(); err != nil {
+					GetLogger(ctx).Debug("error returned in user code",
+						slog.String("error", err.Error()))
+
+					return err
+				}
+
+				return nil
+			}
+		}
+
 		if panicProvider, ok := inj.(ChaosPanicProvider); ok {
 			// Copy provider to local variable to avoid closure issues
 			pp := panicProvider
@@ -505,7 +520,6 @@ func (e *Executor) buildChaosContext(ctx context.Context, injectors []Injector) 
 
 				return false
 			}
-			chaos.panicProbability = panicProvider.GetPanicProbability()
 		}
 
 		// Find network injector

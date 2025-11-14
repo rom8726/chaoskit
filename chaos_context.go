@@ -15,8 +15,8 @@ type chaosKey struct{}
 // ChaosContext provides chaos injection capabilities to user code
 type ChaosContext struct {
 	mu               sync.RWMutex
-	panicProbability float64
 	delayFunc        func() bool
+	errorFunc        func() error
 	panicFunc        func() bool
 	networkFunc      func(host string, port int) bool
 	cancellationFunc func(context.Context) (context.Context, context.CancelFunc)
@@ -34,6 +34,23 @@ func GetChaos(ctx context.Context) *ChaosContext {
 		if chaos, ok := v.(*ChaosContext); ok {
 			return chaos
 		}
+	}
+
+	return nil
+}
+
+func MaybeError(ctx context.Context) error {
+	chaos := GetChaos(ctx)
+	if chaos == nil {
+		return nil
+	}
+
+	chaos.mu.RLock()
+	errorFunc := chaos.errorFunc
+	chaos.mu.RUnlock()
+
+	if errorFunc != nil {
+		return errorFunc()
 	}
 
 	return nil

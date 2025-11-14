@@ -141,6 +141,12 @@ type ChaosDelayProvider interface {
 	GetChaosDelay(ctx context.Context) (time.Duration, bool)
 }
 
+// ChaosErrorProvider provides error injection capability
+type ChaosErrorProvider interface {
+	Injector
+	ShouldReturnError() error
+}
+
 // ChaosPanicProvider provides panic injection capability
 type ChaosPanicProvider interface {
 	Injector

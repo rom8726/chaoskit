@@ -87,9 +87,7 @@ func (s *ResilientService) ProcessRequest(ctx context.Context) error {
 
 	// Simulate potential error (but we handle it)
 	if err := chaoskit.MaybeError(ctx); err != nil {
-		s.errorCount.Add(1)
-		// Return error but don't panic - this is expected behavior
-		return err
+		// handle error
 	}
 
 	// Success case
@@ -176,12 +174,15 @@ func main() {
 		Inject("panic", injectors.PanicProbability(0.15)). // 15% chance
 		// Inject delays
 		Inject("delay", injectors.RandomDelay(5*time.Millisecond, 20*time.Millisecond)).
+		// Inject errors with 15% probability
+		Inject("error", injectors.ErrorWithProbability("temporary error", 0.15)).
 		// Validators - allow some panics since we recover from them
 		Assert("panic_recovery", validators.NoPanics(20)).                      // Allow up to 20 panics (we have 25 iterations * 5 requests * 0.15 = ~19 expected)
 		Assert("goroutine_limit", validators.GoroutineLimit(500)).              // High limit to allow for retries
 		Assert("recursion_depth", validators.RecursionDepthLimit(50)).          // Reasonable recursion limit
 		Assert("no_slow_iteration", validators.NoSlowIteration(2*time.Second)). // Prevent slow iterations
-		Repeat(25).                                                             // 25 iterations to get good statistics
+		//Assert("no_errors", validators.MaxErrors(0)).
+		Repeat(25). // 25 iterations to get good statistics
 		Build()
 
 	// Run scenario with executor

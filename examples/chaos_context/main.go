@@ -176,6 +176,7 @@ func main() {
 		Assert("no_goroutine_leak", validators.GoroutineLimit(200)).
 		Assert("recursion_depth_below_100", validators.RecursionDepthLimit(100)).
 		Assert("no_slow_iteration", validators.NoSlowIteration(5*time.Second)).
+		Assert("max_errors", validators.MaxErrors(1)).
 		Repeat(20).
 		Build()
 
@@ -199,13 +200,6 @@ func main() {
 	// Print detailed report
 	log.Println("\n=== Chaos Test Report ===")
 	log.Println(executor.Reporter().GenerateTextReport(report))
-
-	log.Println("\nKey Points:")
-	log.Println("1. chaoskit.MaybePanic(ctx) - Call at critical points to allow panic injection")
-	log.Println("2. chaoskit.MaybeDelay(ctx) - Call to inject delays from chaos context")
-	log.Println("3. chaoskit.ShouldFail(ctx, probability) - Use for conditional failures")
-	log.Println("\nThis approach allows chaos to happen INSIDE your code execution,")
-	log.Println("not just before/after steps, making tests more realistic!")
 
 	_ = executor.Reporter().SaveJUnitXML(report, "chaos-context-report.xml")
 

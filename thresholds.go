@@ -17,6 +17,7 @@ const (
 	ValidatorMemoryUnder         = "memory-under"
 	ValidatorPanics              = "panics"
 	ValidatorInfiniteLoop        = "infinite-loop"
+	ValidatorMaxErrors           = "max-errors"
 )
 
 // Error type identifiers

@@ -246,10 +246,16 @@ type RecursionRecorder interface {
 	RecordRecursion(depth int)
 }
 
+// ErrorRecorder is implemented by validators that can record errors during execution.
+type ErrorRecorder interface {
+	RecordError(ctx context.Context)
+}
+
 // EventRecorder provides a unified interface for recording runtime events from steps.
 type EventRecorder interface {
 	RecordPanic(ctx context.Context)
 	RecordRecursionDepth(depth int)
+	RecordError(ctx context.Context)
 }
 
 // AttachRecorder attaches an EventRecorder to context.
@@ -271,6 +277,15 @@ func RecordRecursionDepth(ctx context.Context, depth int) {
 	if v := ctx.Value(recorderKey{}); v != nil {
 		if r, ok := v.(EventRecorder); ok {
 			r.RecordRecursionDepth(depth)
+		}
+	}
+}
+
+// RecordError records an error via context-attached recorder (no-op if absent).
+func RecordError(ctx context.Context) {
+	if v := ctx.Value(recorderKey{}); v != nil {
+		if r, ok := v.(EventRecorder); ok {
+			r.RecordError(ctx)
 		}
 	}
 }

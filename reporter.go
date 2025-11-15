@@ -394,6 +394,7 @@ func (r *Reporter) getValidatorSeverity(validatorName string, thresholds *Succes
 //   - "memory_under_100MB" -> ValidatorMemoryLimit
 //   - "no_panics_5" -> ValidatorPanicRecovery
 //   - "no_infinite_loop_200ms" -> ValidatorInfiniteLoop
+//   - "max_errors_5" -> ValidatorMaxErrors
 func normalizeValidatorName(name string) string {
 	name = strings.ToLower(name)
 
@@ -420,6 +421,7 @@ func normalizeValidatorName(name string) string {
 		ValidatorPanics:              ValidatorPanicRecovery,
 		ValidatorExecutionTime:       ValidatorExecutionTime,
 		ValidatorInfiniteLoop:        ValidatorInfiniteLoop,
+		ValidatorMaxErrors:           ValidatorMaxErrors,
 	}
 
 	// Check if name matches any mapping key
@@ -450,6 +452,12 @@ func normalizeValidatorName(name string) string {
 	}
 	if strings.Contains(name, "execution") || strings.Contains(name, "time") {
 		return ValidatorExecutionTime
+	}
+	if strings.Contains(name, "error") && strings.Contains(name, "max") {
+		return ValidatorMaxErrors
+	}
+	if strings.Contains(name, "max_errors") {
+		return ValidatorMaxErrors
 	}
 
 	return name
@@ -485,6 +493,8 @@ func classifyError(err error) string {
 		return ErrorTypeTimeout
 	case strings.Contains(msg, "memory"):
 		return ErrorTypeMemory
+	case strings.Contains(msg, "too many errors") || (strings.Contains(msg, "error") && strings.Contains(msg, "limit")):
+		return ErrorTypeOther
 	default:
 		return ErrorTypeOther
 	}

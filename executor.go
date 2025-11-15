@@ -133,6 +133,14 @@ func (r *validatorEventRecorder) RecordRecursionDepth(depth int) {
 	}
 }
 
+func (r *validatorEventRecorder) RecordError(ctx context.Context) {
+	for _, v := range r.validators {
+		if er, ok := v.(ErrorRecorder); ok {
+			er.RecordError(ctx)
+		}
+	}
+}
+
 // getAllInjectors collects all injectors from scenario (both direct and from scopes)
 func (e *Executor) getAllInjectors(scenario *Scenario) []Injector {
 	allInjectors := make([]Injector, 0, len(scenario.injectors))
@@ -499,6 +507,8 @@ func (e *Executor) buildChaosContext(ctx context.Context, injectors []Injector) 
 				if err := pp.ShouldReturnError(); err != nil {
 					GetLogger(ctx).Debug("error returned in user code",
 						slog.String("error", err.Error()))
+					// Record error for validators
+					RecordError(ctx)
 
 					return err
 				}

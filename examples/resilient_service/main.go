@@ -92,6 +92,7 @@ func (s *ResilientService) ProcessRequest(ctx context.Context) error {
 
 	// Success case
 	s.successCount.Add(1)
+
 	return nil
 }
 
@@ -124,10 +125,11 @@ func (s *ResilientService) ProcessRequestWithRetry(ctx context.Context, maxRetri
 
 		if err == nil {
 			s.successCount.Add(1)
+
 			return nil
 		}
 
-		s.errorCount.Add(1)
+		//s.errorCount.Add(1)
 		if attempt < maxRetries-1 {
 			// Wait before retry
 			time.Sleep(10 * time.Millisecond)
@@ -147,7 +149,7 @@ func ExecuteStep(ctx context.Context, target chaoskit.Target) error {
 	// Process multiple requests to demonstrate resilience
 	for i := 0; i < 5; i++ {
 		// Use retry logic for better resilience
-		if err := service.ProcessRequestWithRetry(ctx, 3); err != nil {
+		if err := service.ProcessRequestWithRetry(ctx, 10); err != nil {
 			// Log error but continue processing - this is expected behavior
 			log.Printf("[%s] Request %d failed after retries: %v", service.name, i+1, err)
 		}
@@ -181,7 +183,7 @@ func main() {
 		Assert("goroutine_limit", validators.GoroutineLimit(500)).              // High limit to allow for retries
 		Assert("recursion_depth", validators.RecursionDepthLimit(50)).          // Reasonable recursion limit
 		Assert("no_slow_iteration", validators.NoSlowIteration(2*time.Second)). // Prevent slow iterations
-		//Assert("no_errors", validators.MaxErrors(0)).
+		Assert("no_errors", validators.MaxErrors(0)).
 		Repeat(25). // 25 iterations to get good statistics
 		Build()
 

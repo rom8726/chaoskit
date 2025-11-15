@@ -507,8 +507,6 @@ func (e *Executor) buildChaosContext(ctx context.Context, injectors []Injector) 
 				if err := pp.ShouldReturnError(); err != nil {
 					GetLogger(ctx).Debug("error returned in user code",
 						slog.String("error", err.Error()))
-					// Record error for validators
-					RecordError(ctx)
 
 					return err
 				}

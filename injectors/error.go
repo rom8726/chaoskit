@@ -69,7 +69,13 @@ func (e *ErrorInjector) BeforeStep(context.Context) error {
 }
 
 // AfterStep is called after step execution (no-op for delay injector)
-func (e *ErrorInjector) AfterStep(context.Context, error) error {
+func (e *ErrorInjector) AfterStep(ctx context.Context, err error) error {
+	if err != nil {
+		e.mu.Lock()
+		e.errorCount++
+		e.mu.Unlock()
+	}
+
 	return nil
 }
 
@@ -99,8 +105,6 @@ func (e *ErrorInjector) ShouldReturnError() error {
 	}
 
 	if e.rng.Float64() < e.probability {
-		e.errorCount++
-
 		return errors.New(e.errorMsg)
 	}
 

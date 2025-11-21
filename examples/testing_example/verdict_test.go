@@ -27,7 +27,7 @@ func TestVerdictPass(t *testing.T) {
 	},
 		chaostest.WithRepeat(10),
 		chaostest.WithDefaultThresholds(), // 95% success rate required
-	)()
+	)
 }
 
 // TestVerdictUnstable demonstrates a test with warnings (commented out to not fail CI)
@@ -62,7 +62,7 @@ func TestVerdictUnstable(t *testing.T) {
 		chaostest.WithRepeat(20),
 		chaostest.WithThresholds(thresholds),
 		chaostest.WithFailurePolicy(chaoskit.ContinueOnFailure),
-	)()
+	)
 }
 */
 
@@ -90,7 +90,7 @@ func TestVerdictFail(t *testing.T) {
 	},
 		chaostest.WithRepeat(10),
 		chaostest.WithStrictThresholds(), // 100% success rate required - will fail
-	)()
+	)
 }
 */
 
@@ -121,7 +121,7 @@ func TestVerdictWithCustomThresholds(t *testing.T) {
 		chaostest.WithRepeat(20),
 		chaostest.WithThresholds(thresholds),
 		chaostest.WithFailurePolicy(chaoskit.ContinueOnFailure),
-	)()
+	)
 }
 
 // TestVerdictWithoutReport demonstrates running without report output
@@ -139,7 +139,7 @@ func TestVerdictWithoutReport(t *testing.T) {
 	},
 		chaostest.WithRepeat(5),
 		chaostest.WithoutReport(), // No report printed
-	)()
+	)
 }
 
 // TestVerdictWithoutVerdictCalculation demonstrates running without verdict
@@ -157,5 +157,5 @@ func TestVerdictWithoutVerdictCalculation(t *testing.T) {
 	},
 		chaostest.WithRepeat(5),
 		chaostest.WithoutVerdict(), // No verdict calculation
-	)()
+	)
 }

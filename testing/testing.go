@@ -119,7 +119,7 @@ func WithoutVerdict() ChaosTestOption {
 //	    },
 //	        WithRepeat(10),
 //	        WithDefaultThresholds(), // Enables verdict with 95% success rate
-//	    )()
+//	    )
 //	}
 func RunChaos(
 	t TestingT,
@@ -127,62 +127,60 @@ func RunChaos(
 	target chaoskit.Target,
 	builderFn func(*chaoskit.ScenarioBuilder) *chaoskit.ScenarioBuilder,
 	opts ...ChaosTestOption,
-) func() {
-	return func() {
-		t.Helper()
+) {
+	t.Helper()
 
-		// Apply options
-		config := &chaosTestConfig{
-			repeat:        1,
-			failurePolicy: chaoskit.FailFast,
-			thresholds:    chaoskit.DefaultThresholds(), // Use default thresholds
+	// Apply options
+	config := &chaosTestConfig{
+		repeat:        1,
+		failurePolicy: chaoskit.FailFast,
+		thresholds:    chaoskit.DefaultThresholds(), // Use default thresholds
+	}
+	for _, opt := range opts {
+		opt(config)
+	}
+
+	// Create scenario builder
+	builder := chaoskit.NewScenario(name).WithTarget(target)
+
+	// Let user configure the scenario
+	builder = builderFn(builder)
+
+	// Set repeat count
+	builder = builder.Repeat(config.repeat)
+
+	// Build scenario
+	scenario := builder.Build()
+
+	// Create executor with options
+	executorOpts := append(
+		[]chaoskit.ExecutorOption{chaoskit.WithFailurePolicy(config.failurePolicy)},
+		config.executorOpts...,
+	)
+	executor := chaoskit.NewExecutor(executorOpts...)
+
+	// Run scenario
+	ctx := context.Background()
+	if err := executor.Run(ctx, scenario); err != nil {
+		t.Errorf("chaos test execution failed: %v", err)
+
+		// Print report on failure
+		if !config.skipReport {
+			printReport(t, executor, config)
 		}
-		for _, opt := range opts {
-			opt(config)
-		}
 
-		// Create scenario builder
-		builder := chaoskit.NewScenario(name).WithTarget(target)
+		t.FailNow()
+		return
+	}
 
-		// Let user configure the scenario
-		builder = builderFn(builder)
+	// Calculate verdict and print report
+	if !config.skipReport || !config.skipVerdict {
+		verdict := evaluateVerdict(t, executor, config)
 
-		// Set repeat count
-		builder = builder.Repeat(config.repeat)
-
-		// Build scenario
-		scenario := builder.Build()
-
-		// Create executor with options
-		executorOpts := append(
-			[]chaoskit.ExecutorOption{chaoskit.WithFailurePolicy(config.failurePolicy)},
-			config.executorOpts...,
-		)
-		executor := chaoskit.NewExecutor(executorOpts...)
-
-		// Run scenario
-		ctx := context.Background()
-		if err := executor.Run(ctx, scenario); err != nil {
-			t.Errorf("chaos test execution failed: %v", err)
-
-			// Print report on failure
-			if !config.skipReport {
-				printReport(t, executor, config)
-			}
-
+		// Fail test if verdict is FAIL
+		if verdict == chaoskit.VerdictFail {
+			t.Errorf("chaos test verdict: FAIL")
 			t.FailNow()
-			return
-		}
-
-		// Calculate verdict and print report
-		if !config.skipReport || !config.skipVerdict {
-			verdict := evaluateVerdict(t, executor, config)
-
-			// Fail test if verdict is FAIL
-			if verdict == chaoskit.VerdictFail {
-				t.Errorf("chaos test verdict: FAIL")
-				t.FailNow()
-			}
 		}
 	}
 }
@@ -259,7 +257,7 @@ func evaluateVerdict(t TestingT, executor *chaoskit.Executor, config *chaosTestC
 //	    chaoskit.RunChaosSimple(t, "name", target, steps, injectors, validators,
 //	        WithRepeat(10),
 //	        WithDefaultThresholds(),
-//	    )()
+//	    )
 //	}
 func RunChaosSimple(
 	t TestingT,
@@ -269,8 +267,8 @@ func RunChaosSimple(
 	injectors []chaoskit.Injector,
 	validators []chaoskit.Validator,
 	opts ...ChaosTestOption,
-) func() {
-	return RunChaos(t, name, target, func(s *chaoskit.ScenarioBuilder) *chaoskit.ScenarioBuilder {
+) {
+	RunChaos(t, name, target, func(s *chaoskit.ScenarioBuilder) *chaoskit.ScenarioBuilder {
 		// Add steps
 		for i, stepFn := range steps {
 			s = s.Step(fmt.Sprintf("step-%d", i+1), stepFn)

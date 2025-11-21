@@ -85,7 +85,7 @@ func TestWithChaosFullAPI(t *testing.T) {
 	},
 		chaostest.WithRepeat(5),
 		chaostest.WithDefaultThresholds(), // Enables verdict with 95% success rate
-	)()
+	)
 }
 
 // TestWithChaosSimpleAPI demonstrates the simplified API
@@ -116,7 +116,7 @@ func TestWithChaosSimpleAPI(t *testing.T) {
 	chaostest.RunChaosSimple(t, "simple", target, steps, injs, vals,
 		chaostest.WithRepeat(10),
 		chaostest.WithRelaxedThresholds(), // 80% success rate
-	)()
+	)
 }
 
 // TestWithChaosComplexScenario demonstrates a more complex scenario
@@ -159,5 +159,5 @@ func TestWithChaosComplexScenario(t *testing.T) {
 		chaostest.WithRepeat(20),
 		chaostest.WithFailurePolicy(chaoskit.ContinueOnFailure),
 		chaostest.WithStrictThresholds(), // 100% success rate required
-	)()
+	)
 }

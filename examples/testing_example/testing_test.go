@@ -53,12 +53,12 @@ func (t *TestTarget) GetCounter() int {
 	return t.counter
 }
 
-// TestWithChaosFullAPI demonstrates the new WithChaos API with full framework integration
+// TestWithChaosFullAPI demonstrates the new RunChaos API with full framework integration
 func TestWithChaosFullAPI(t *testing.T) {
 	target := &TestTarget{}
 
-	// Use the new WithChaos API with ScenarioBuilder
-	chaostest.WithChaos(t, "full", target, func(s *chaoskit.ScenarioBuilder) *chaoskit.ScenarioBuilder {
+	// Use the new RunChaos API with ScenarioBuilder
+	chaostest.RunChaos(t, "full", target, func(s *chaoskit.ScenarioBuilder) *chaoskit.ScenarioBuilder {
 		return s.
 			Step("increment", func(ctx context.Context, target chaoskit.Target) error {
 				// Use chaos context functions
@@ -82,7 +82,10 @@ func TestWithChaosFullAPI(t *testing.T) {
 			}).
 			Inject("delay", injectors.RandomDelay(5*time.Millisecond, 20*time.Millisecond)).
 			Assert("goroutines", validators.GoroutineLimit(50))
-	}, chaostest.WithRepeat(5))()
+	},
+		chaostest.WithRepeat(5),
+		chaostest.WithDefaultThresholds(), // Enables verdict with 95% success rate
+	)()
 }
 
 // TestWithChaosSimpleAPI demonstrates the simplified API
@@ -110,14 +113,17 @@ func TestWithChaosSimpleAPI(t *testing.T) {
 		validators.GoroutineLimit(50),
 	}
 
-	chaostest.WithChaosSimple(t, "simple", target, steps, injs, vals, chaostest.WithRepeat(10))()
+	chaostest.RunChaosSimple(t, "simple", target, steps, injs, vals,
+		chaostest.WithRepeat(10),
+		chaostest.WithRelaxedThresholds(), // 80% success rate
+	)()
 }
 
 // TestWithChaosComplexScenario demonstrates a more complex scenario
 func TestWithChaosComplexScenario(t *testing.T) {
 	target := &TestTarget{}
 
-	chaostest.WithChaos(t, "complex", target, func(s *chaoskit.ScenarioBuilder) *chaoskit.ScenarioBuilder {
+	chaostest.RunChaos(t, "complex", target, func(s *chaoskit.ScenarioBuilder) *chaoskit.ScenarioBuilder {
 		return s.
 			Step("init", func(ctx context.Context, target chaoskit.Target) error {
 				testTarget := target.(*TestTarget)
@@ -152,5 +158,6 @@ func TestWithChaosComplexScenario(t *testing.T) {
 	},
 		chaostest.WithRepeat(20),
 		chaostest.WithFailurePolicy(chaoskit.ContinueOnFailure),
+		chaostest.WithStrictThresholds(), // 100% success rate required
 	)()
 }

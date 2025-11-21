@@ -62,6 +62,22 @@ This makes ChaosKit ideal for new projects or when you can modify the code being
 
 **Key Philosophy**: Build resilient systems by designing them to be testable with chaos from day one, rather than retrofitting chaos testing into existing code.
 
+### ⚠️ Disclaimer
+
+ChaosKit is intended for use in testing, experimentation, and controlled development environments only.
+The framework introduces mechanisms for fault injection that may alter the normal behavior of your application.
+
+**ChaosKit does not provide any guarantees of safety, correctness, or stability when used in production environments.**
+Incorrect or unintended use may lead to unpredictable behavior, data loss, system outages, or other negative consequences.
+
+By using ChaosKit, you acknowledge that:
+
+* you are responsible for evaluating its suitability for your specific use case,
+* you must ensure proper isolation between test and production environments,
+* the authors and contributors are **not liable** for any damages or issues arising from its use.
+
+Use responsibly and only in environments where failure is acceptable.
+
 ## Key Capabilities
 
 - **Controlled Chaos Injection**: Introduce delays, panics, resource pressure, and network faults

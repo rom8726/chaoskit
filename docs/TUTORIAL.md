@@ -796,7 +796,6 @@ chaostesting.RunChaos(
     builderFn,
     chaostesting.WithRepeat(50),
     chaostesting.WithFailurePolicy(chaoskit.ContinueOnFailure),
-    chaostesting.WithReportToStderr(),
     chaostesting.WithThresholds(&chaoskit.SuccessThresholds{
         MinSuccessRate: 0.90,
         WarningValidators: []string{
@@ -878,7 +877,7 @@ func ExecuteWorkflow(ctx context.Context, target chaoskit.Target) error {
     }
     
     // Record events for validators
-    chaoskit.RecordRecursionDepth(childCtx, 1)
+    chaoskit.RecordRecursionDepth(childCtx, 0)
     
     // Your workflow logic
     time.Sleep(10 * time.Millisecond)
@@ -893,7 +892,6 @@ func main() {
     }))
     
     engine := &WorkflowEngine{name: "production-engine"}
-    retryProvider := NewForceRetryProvider(0.25)
     
     // Build comprehensive scenario
     scenario := chaoskit.NewScenario("production-test").
@@ -901,9 +899,8 @@ func main() {
         Step("execute", ExecuteWorkflow).
         Inject("delay", injectors.RandomDelay(5*time.Millisecond, 25*time.Millisecond)).
         Inject("panic", injectors.PanicProbability(0.01)).
-        Inject("errors", injectors.ErrorWithProbability(io.ErrUnexpectedEOF, 0.02)).
+        Inject("errors", injectors.ErrorWithProbability(io.ErrUnexpectedEOF.Error(), 0.02)).
         Inject("cancellation", injectors.NewContextCancellationInjector(0.15)).
-        Inject("force-retry", retryProvider).
         Assert("goroutines", validators.GoroutineLimit(200)).
         Assert("recursion", validators.RecursionDepthLimit(100)).
         Assert("no-infinite-loop", validators.NoSlowIteration(5*time.Second)).

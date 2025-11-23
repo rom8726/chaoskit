@@ -256,9 +256,9 @@ graph TD
     MaybeCancel -->|No| Continue
     Cancel -->|No| Continue
     
-    GetCC --> Apply{ApplyChaos(provider)?}
+    GetCC --> Apply{ApplyChaos?}
     Apply -->|Yes| Lookup[Find registered provider]
-    Lookup -->|Found| ProviderApply[provider.Apply(ctx)]
+    Lookup -->|Found| ProviderApply[provider.Apply]
     ProviderApply --> Continue
     Lookup -->|Missing| Continue
     Apply -->|No| Continue

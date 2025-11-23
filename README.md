@@ -107,7 +107,7 @@ chaoskit.NewScenario("example").
     WithTarget(client).
     Step("call API", callAPI).
     Inject("latency", injectors.RandomDelay(5*time.Millisecond, 50*time.Millisecond)).
-    Inject("errors", injectors.ErrorProbability(io.ErrUnexpectedEOF, 0.02)).
+    Inject("errors", injectors.ErrorWithProbability(io.ErrUnexpectedEOF, 0.02)).
     Assert("goroutines", validators.GoroutineLimit(100)).
     Repeat(50).
     Build()
@@ -124,7 +124,7 @@ ChaosKit supports:
 
 * `PanicProbability(p)`
 * `RandomDelay(min, max)`
-* `ErrorProbability(err, p)`
+* `ErrorWithProbability(err, p)`
 * `CompositeInjector(...)`
 * network chaos via **ToxiProxy**
 * optional monkey-patching for advanced scenarios

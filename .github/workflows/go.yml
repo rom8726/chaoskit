@@ -25,7 +25,7 @@ jobs:
       run: go build -o bin/report-viewer ./cmd/report-viewer
 
     - name: Run tests with coverage
-      run: go test -race -covermode atomic -coverprofile=covprofile ./...
+      run: go test -tags=chaos -race -covermode atomic -coverprofile=covprofile ./...
 
     - name: Install goveralls
       run: go install github.com/mattn/goveralls@latest

@@ -1,4 +1,4 @@
-//go:build !disable_monkey_patching
+//go:build chaos && !disable_monkey_patching
 
 package injectors
 

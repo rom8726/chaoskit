@@ -48,22 +48,22 @@ func (ctx *ChaosContext) SetCancellationFunc(fn func(context.Context) (context.C
 }
 
 // RegisterProvider registers a universal chaos provider
-func (c *ChaosContext) RegisterProvider(provider ChaosProvider) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+func (ctx *ChaosContext) RegisterProvider(provider ChaosProvider) {
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
 
-	if c.providers == nil {
-		c.providers = make(map[string]ChaosProvider)
+	if ctx.providers == nil {
+		ctx.providers = make(map[string]ChaosProvider)
 	}
-	c.providers[provider.Name()] = provider
+	ctx.providers[provider.Name()] = provider
 }
 
 // GetProvider returns a registered provider by name
-func (c *ChaosContext) GetProvider(name string) (ChaosProvider, bool) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+func (ctx *ChaosContext) GetProvider(name string) (ChaosProvider, bool) {
+	ctx.mu.RLock()
+	defer ctx.mu.RUnlock()
 
-	provider, ok := c.providers[name]
+	provider, ok := ctx.providers[name]
 
 	return provider, ok
 }

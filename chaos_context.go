@@ -1,13 +1,11 @@
+//go:build chaos
+
 package chaoskit
 
 import (
 	"context"
-	"math/rand"
 	"sync"
 )
-
-// randKey is a private type for context key
-type randKey struct{}
 
 // chaosKey is a private type for context key
 type chaosKey struct{}
@@ -21,6 +19,53 @@ type ChaosContext struct {
 	networkFunc      func(host string, port int) bool
 	cancellationFunc func(context.Context) (context.Context, context.CancelFunc)
 	providers        map[string]ChaosProvider
+}
+
+func NewChaosContext() *ChaosContext {
+	return &ChaosContext{
+		providers: make(map[string]ChaosProvider),
+	}
+}
+
+func (ctx *ChaosContext) SetDelayFunc(fn func() bool) {
+	ctx.delayFunc = fn
+}
+
+func (ctx *ChaosContext) SetErrorFunc(fn func() error) {
+	ctx.errorFunc = fn
+}
+
+func (ctx *ChaosContext) SetPanicFunc(fn func() bool) {
+	ctx.panicFunc = fn
+}
+
+func (ctx *ChaosContext) SetNetworkFunc(fn func(host string, port int) bool) {
+	ctx.networkFunc = fn
+}
+
+func (ctx *ChaosContext) SetCancellationFunc(fn func(context.Context) (context.Context, context.CancelFunc)) {
+	ctx.cancellationFunc = fn
+}
+
+// RegisterProvider registers a universal chaos provider
+func (c *ChaosContext) RegisterProvider(provider ChaosProvider) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.providers == nil {
+		c.providers = make(map[string]ChaosProvider)
+	}
+	c.providers[provider.Name()] = provider
+}
+
+// GetProvider returns a registered provider by name
+func (c *ChaosContext) GetProvider(name string) (ChaosProvider, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	provider, ok := c.providers[name]
+
+	return provider, ok
 }
 
 // AttachChaos attaches chaos capabilities to context
@@ -145,43 +190,4 @@ func ApplyChaos(ctx context.Context, providerName string) bool {
 	}
 
 	return provider.Apply(ctx)
-}
-
-// RegisterChaosProvider registers a universal chaos provider
-func (c *ChaosContext) RegisterProvider(provider ChaosProvider) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if c.providers == nil {
-		c.providers = make(map[string]ChaosProvider)
-	}
-	c.providers[provider.Name()] = provider
-}
-
-// GetProvider returns a registered provider by name
-func (c *ChaosContext) GetProvider(name string) (ChaosProvider, bool) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	provider, ok := c.providers[name]
-
-	return provider, ok
-}
-
-// AttachRand attaches a deterministic random number generator to context
-func AttachRand(ctx context.Context, rng *rand.Rand) context.Context {
-	return context.WithValue(ctx, randKey{}, rng)
-}
-
-// GetRand retrieves the random number generator from context, or creates a new one if not found
-// If seed was set in scenario, the generator will be deterministic
-func GetRand(ctx context.Context) *rand.Rand {
-	if v := ctx.Value(randKey{}); v != nil {
-		if rng, ok := v.(*rand.Rand); ok {
-			return rng
-		}
-	}
-
-	// Fallback to global random if no generator in context
-	return rand.New(rand.NewSource(rand.Int63()))
 }

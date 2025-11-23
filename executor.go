@@ -477,16 +477,14 @@ func (e *Executor) executeOnce(ctx context.Context, scenario *Scenario) Executio
 }
 
 func (e *Executor) buildChaosContext(ctx context.Context, injectors []Injector) *ChaosContext {
-	chaos := &ChaosContext{
-		providers: make(map[string]ChaosProvider),
-	}
+	chaos := NewChaosContext()
 
 	// Find delay injector
 	for _, inj := range injectors {
 		if delayProvider, ok := inj.(ChaosDelayProvider); ok {
 			// Copy provider to local variable to avoid closure issues
 			dp := delayProvider
-			chaos.delayFunc = func() bool {
+			chaos.SetDelayFunc(func() bool {
 				delay, ok := dp.GetChaosDelay(ctx)
 				if ok && delay > 0 {
 					GetLogger(ctx).Debug("delay injected in user code",
@@ -497,13 +495,13 @@ func (e *Executor) buildChaosContext(ctx context.Context, injectors []Injector) 
 				}
 
 				return false
-			}
+			})
 		}
 
 		if panicProvider, ok := inj.(ChaosErrorProvider); ok {
 			// Copy provider to local variable to avoid closure issues
 			pp := panicProvider
-			chaos.errorFunc = func() error {
+			chaos.SetErrorFunc(func() error {
 				if err := pp.ShouldReturnError(); err != nil {
 					GetLogger(ctx).Debug("error returned in user code",
 						slog.String("error", err.Error()))
@@ -512,13 +510,13 @@ func (e *Executor) buildChaosContext(ctx context.Context, injectors []Injector) 
 				}
 
 				return nil
-			}
+			})
 		}
 
 		if panicProvider, ok := inj.(ChaosPanicProvider); ok {
 			// Copy provider to local variable to avoid closure issues
 			pp := panicProvider
-			chaos.panicFunc = func() bool {
+			chaos.SetPanicFunc(func() bool {
 				if pp.ShouldChaosPanic() {
 					GetLogger(ctx).Debug("panic triggered in user code",
 						slog.Float64("probability", pp.GetPanicProbability()))
@@ -527,14 +525,14 @@ func (e *Executor) buildChaosContext(ctx context.Context, injectors []Injector) 
 				}
 
 				return false
-			}
+			})
 		}
 
 		// Find network injector
 		if networkProvider, ok := inj.(ChaosNetworkProvider); ok {
 			// Copy provider to local variable to avoid closure issues
 			np := networkProvider
-			chaos.networkFunc = func(host string, port int) bool {
+			chaos.SetNetworkFunc(func(host string, port int) bool {
 				if !np.ShouldApplyNetworkChaos(host, port) {
 					return false
 				}
@@ -560,16 +558,16 @@ func (e *Executor) buildChaosContext(ctx context.Context, injectors []Injector) 
 				}
 
 				return false
-			}
+			})
 		}
 
 		// Find context cancellation injector
 		if cancellationProvider, ok := inj.(ChaosContextCancellationProvider); ok {
 			// Copy provider to local variable to avoid closure issues
 			cp := cancellationProvider
-			chaos.cancellationFunc = func(parent context.Context) (context.Context, context.CancelFunc) {
+			chaos.SetCancellationFunc(func(parent context.Context) (context.Context, context.CancelFunc) {
 				return cp.GetChaosContext(parent)
-			}
+			})
 		}
 
 		// Register universal providers

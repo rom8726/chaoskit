@@ -238,7 +238,7 @@ graph TB
     Context --> Cancellation[ContextCancellationInjector]
     
     Step --> StepDelay[DelayInjector<br/>BeforeStep/AfterStep]
-    Step --> ContextPanic[PanicInjector<br/>via MaybePanic()]
+    Step --> ContextPanic[PanicInjector<br/>via MaybePanic]
     
     Hybrid --> NetworkContextual[ContextualNetworkInjector]
     

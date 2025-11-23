@@ -170,6 +170,7 @@ func RunChaos(
 		}
 
 		t.FailNow()
+
 		return
 	}
 
@@ -201,6 +202,7 @@ func printReport(t TestingT, executor *chaoskit.Executor, config *chaosTestConfi
 				logger.Logf("\nFailed to generate verdict: %v", err)
 				logger.Logf("\n%s", executor.Reporter().GenerateReport())
 			}
+
 			return
 		}
 
@@ -221,6 +223,7 @@ func evaluateVerdict(t TestingT, executor *chaoskit.Executor, config *chaosTestC
 	report, err := executor.Reporter().GetVerdict(config.thresholds)
 	if err != nil {
 		t.Errorf("failed to generate verdict: %v", err)
+
 		return chaoskit.VerdictFail
 	}
 

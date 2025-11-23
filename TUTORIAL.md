@@ -637,7 +637,6 @@ func main() {
 - Explore the [examples/](examples/) directory for more patterns
 - Read [ARCHITECTURE.md](ARCHITECTURE.md) for design details
 - Check [README.md](README.md) for API reference
-- Review [TECHNICAL_SPECIFICATION.md](TECHNICAL_SPECIFICATION.md) for implementation details
 
 ---
 

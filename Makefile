@@ -6,24 +6,24 @@ help: ## Show this help
 build: ## Build all examples
 	@echo "Building examples..."
 	@mkdir -p bin
-	@go build -o bin/simple examples/simple/main.go
-	@go build -o bin/continuous examples/continuous/main.go
-	@go build -o bin/chaos_context examples/chaos_context/main.go
+	@go build -tags=chaos -o bin/simple examples/simple/main.go
+	@go build -tags=chaos -o bin/continuous examples/continuous/main.go
+	@go build -tags=chaos -o bin/chaos_context examples/chaos_context/main.go
 	@echo "Build complete! Binaries in bin/"
 
 build-tools: ## Build report-viewer tool
 	@echo "Building report-viewer..."
 	@mkdir -p bin
-	@go build -o bin/report-viewer ./cmd/report-viewer
+	@go build -tags=chaos -o bin/report-viewer ./cmd/report-viewer
 	@echo "Build complete! Binary: bin/report-viewer"
 
 test: ## Run tests
 	@echo "Running tests..."
-	@go test -v -race -gcflags=all=-l ./...
+	@go test -tags=chaos -v -race -gcflags=all=-l ./...
 
 race: ## Run tests with race detector
 	@echo "Running race detector..."
-	@go test -race -count=100 ./...
+	@go test -tags=chaos -race -count=100 ./...
 
 run-simple: build ## Run simple chaos example
 	@echo "Running simple chaos example..."

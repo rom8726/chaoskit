@@ -2,7 +2,14 @@
 
 ## Overview
 
-ChaosKit is a modular framework for chaos engineering that follows clean architecture principles. The framework enables systematic testing of system reliability through controlled fault injection and invariant validation.
+ChaosKit is a modular framework for chaos engineering that follows clean architecture principles. The framework enables systematic testing of system reliability through controlled fault injection, invariant validation, verdict calculation, and observability export.
+
+### Architecture Layers
+
+- **Experiment Authoring**: Scenario DSL, scoped injectors, and testing helpers.
+- **Execution Core**: Executor, chaos context, injectors, validators, and step wrappers.
+- **Observability & Verdicts**: Metrics collector, reporters, verdict engine, and exporters.
+- **Integration Surface**: `chaoskit/testing`, CLI utilities, and Prometheus/HTTP exporters.
 
 ## Core Principles
 
@@ -18,35 +25,46 @@ ChaosKit is a modular framework for chaos engineering that follows clean archite
 graph TB
     User[User Code] --> Scenario[Scenario Builder]
     Scenario --> Executor[Executor]
-    
+
     Executor --> Target[Target System]
+    Executor --> ChaosContext[ChaosContext]
     Executor --> Injectors[Injectors]
     Executor --> Validators[Validators]
     Executor --> Metrics[MetricsCollector]
     Executor --> Reporter[Reporter]
-    
-    Target --> Step1[Step 1]
-    Target --> Step2[Step 2]
-    Target --> StepN[Step N]
-    
+    Executor --> Testing[Testing Helpers]
+
+    ChaosContext --> User
+
+    Reporter --> Verdict[Verdict Engine]
+    Verdict --> Thresholds[SuccessThresholds]
+    Verdict --> Reports[Report API]
+
+    Metrics --> Exporters[Prometheus / Integrations]
+
     Injectors --> Delay[DelayInjector]
     Injectors --> Panic[PanicInjector]
+    Injectors --> Error[ErrorInjector]
     Injectors --> Network[NetworkInjector]
+    Injectors --> Cancellation[CancellationInjector]
     Injectors --> MonkeyPatch[MonkeyPatchInjector]
-    
+
     Validators --> Goroutine[GoroutineLeakValidator]
     Validators --> Recursion[RecursionDepthValidator]
     Validators --> PanicRecovery[PanicRecoveryValidator]
     Validators --> Memory[MemoryLimitValidator]
-    
-    Metrics --> Stats[Execution Statistics]
-    Reporter --> Report[Execution Report]
-    
+    Validators --> InfiniteLoop[NoInfiniteLoopValidator]
+    Validators --> StepWrappers[StepWrapper Validators]
+
     style Executor fill:#e1f5ff
+    style ChaosContext fill:#fff9c4
     style Injectors fill:#fff4e1
     style Validators fill:#e8f5e9
     style Metrics fill:#f3e5f5
     style Reporter fill:#fce4ec
+    style Verdict fill:#ffe0b2
+    style Exporters fill:#d1c4e9
+    style Testing fill:#c8e6c9
 ```
 
 ## Component Interaction
@@ -59,13 +77,18 @@ graph LR
         S --> ST[Steps]
         S --> I[Injectors]
         S --> V[Validators]
+        S --> TH[SuccessThresholds]
     end
     
     subgraph "Execution"
         E[Executor] --> TC[Target Setup]
-        E --> IS[Injector Setup]
+        E --> IS[Injector Prepare]
+        E --> CC[Build ChaosContext]
+        E --> WR[Apply Step Wrappers]
         E --> EX[Execute Steps]
-        E --> VA[Validate]
+        E --> VA[Run Validators]
+        E --> MT[Collect Metrics]
+        E --> RP[Record Result]
         E --> CL[Cleanup]
     end
     
@@ -73,17 +96,33 @@ graph LR
         CTX[Context] --> CC[ChaosContext]
         CTX --> ER[EventRecorder]
         CTX --> RNG[Random Generator]
+        CTX --> LOG[Structured Logger]
         CC --> UD[User Code]
+        CC --> Providers[Chaos Providers]
+        Providers --> UD
+        ER --> V
     end
     
     S --> E
+    E --> Metrics[MetricsCollector]
+    E --> Reporter
+    Metrics --> Exporters
+    Reporter --> VerdictEngine[Verdict Engine]
+    VerdictEngine --> Thresholds
+    VerdictEngine --> Reports
+    Reporter --> Results[Execution Results]
     EX --> CTX
     UD --> ER
-    ER --> V
+    V --> VerdictEngine
     
     style E fill:#e1f5ff
     style CTX fill:#fff9c4
+    style Providers fill:#fff9c4
     style UD fill:#c8e6c9
+    style Metrics fill:#f3e5f5
+    style Reporter fill:#fce4ec
+    style VerdictEngine fill:#ffe0b2
+    style Exporters fill:#d1c4e9
 ```
 
 ## Execution Flow
@@ -94,10 +133,14 @@ sequenceDiagram
     participant Executor
     participant Target
     participant Injectors
+    participant ChaosContext
     participant Steps
+    participant EventRecorder
     participant Validators
     participant Metrics
     participant Reporter
+    participant Verdict
+    participant Exporters
     
     User->>Executor: Run(scenario)
     Executor->>Target: Setup()
@@ -105,6 +148,8 @@ sequenceDiagram
     
     Executor->>Injectors: Inject(ctx)
     Injectors-->>Executor: OK
+    Executor->>ChaosContext: Build(injectors)
+    Executor->>EventRecorder: Attach(validators)
     
     loop For each iteration
         Executor->>Validators: Reset()
@@ -115,9 +160,15 @@ sequenceDiagram
             Injectors-->>Executor: OK
             
             Executor->>Steps: Execute(ctx, target)
-            Steps->>Steps: MaybeDelay(ctx)
-            Steps->>Steps: MaybePanic(ctx)
-            Steps->>Steps: RecordRecursionDepth(ctx, depth)
+            Steps->>ChaosContext: MaybeDelay(ctx)
+            Steps->>ChaosContext: MaybePanic(ctx)
+            Steps->>ChaosContext: MaybeError(ctx)
+            Steps->>ChaosContext: MaybeNetworkChaos(ctx, host, port)
+            Steps->>ChaosContext: MaybeCancelContext(ctx)
+            Steps->>ChaosContext: ApplyChaos(ctx, provider)
+            Steps->>EventRecorder: RecordRecursionDepth(depth)
+            Steps->>EventRecorder: RecordPanic()
+            Steps->>EventRecorder: RecordError()
             Steps-->>Executor: OK/Error
             
             Executor->>Injectors: AfterStep(ctx, err)
@@ -138,7 +189,9 @@ sequenceDiagram
     Target-->>Executor: OK
     
     Executor->>Reporter: GenerateReport()
-    Reporter-->>User: Report
+    Reporter->>Verdict: Calculate(thresholds)
+    Verdict-->>User: Verdict & Detailed Report
+    Metrics->>Exporters: Publish()
 ```
 
 ## Injector Lifecycle
@@ -183,12 +236,32 @@ graph TD
     Trigger -->|No| Continue
     Panic -->|No| Continue
     
+    GetCC --> Error{MaybeError?}
+    Error -->|Yes| ErrorFunc[Call errorFunc]
+    ErrorFunc --> ReturnError[Return injected error]
+    ReturnError --> Continue
+    Error -->|No| Continue
+    
     GetCC --> Network{MaybeNetworkChaos?}
     Network -->|Yes| NetworkFunc[Call networkFunc]
     NetworkFunc --> Latency[Apply Latency]
     NetworkFunc --> Drop[Drop Connection]
     Latency --> Continue
     Drop --> Continue
+    
+    GetCC --> Cancel{MaybeCancelContext?}
+    Cancel -->|Yes| CancelFunc[Create chaos child context]
+    CancelFunc --> MaybeCancel{Random cancellation?}
+    MaybeCancel -->|Yes| CancelChild[Cancel child context]
+    MaybeCancel -->|No| Continue
+    Cancel -->|No| Continue
+    
+    GetCC --> Apply{ApplyChaos(provider)?}
+    Apply -->|Yes| Lookup[Find registered provider]
+    Lookup -->|Found| ProviderApply[provider.Apply(ctx)]
+    ProviderApply --> Continue
+    Lookup -->|Missing| Continue
+    Apply -->|No| Continue
     
     Continue --> End[End]
     NoOp --> End
@@ -199,17 +272,25 @@ graph TD
 ```mermaid
 flowchart TD
     Start[Start Validation] --> Reset{Resettable?}
-    Reset -->|Yes| ResetState[Reset State]
-    Reset -->|No| Validate
-    ResetState --> Validate[Validate]
+    Reset -->|Yes| ResetState[Reset state]
+    Reset -->|No| WrapCheck
+    ResetState --> WrapCheck
     
-    Validate --> Check{Check Invariants}
-    Check -->|Pass| LogPass[Log Debug: Pass]
-    Check -->|Warn| LogWarn[Log Warn: Approaching Limit]
-    Check -->|Fail| LogError[Log Error: Failed]
+    WrapCheck{Implements StepWrapper?} -->|Yes| WrapStep[Wrap step execution]
+    WrapCheck -->|No| Validate
+    WrapStep --> Validate[Validate after step run]
+    
+    Validate --> Check{Invariant holds?}
+    Check -->|Yes| LogPass[Log debug: pass]
+    Check -->|No| DetermineSeverity[Determine severity]
     
     LogPass --> ReturnOK[Return nil]
-    LogWarn --> Continue[Continue]
+    DetermineSeverity -->|Warning| LogWarn[Log warn: approaching limits]
+    DetermineSeverity -->|Critical| LogError[Log error: failed]
+    DetermineSeverity -->|Info| LogInfo[Log info: soft failure]
+    
+    LogWarn --> Continue[Continue execution]
+    LogInfo --> Continue
     LogError --> ReturnError[Return error]
     
     Continue --> Next{More Validators?}
@@ -280,6 +361,36 @@ graph TB
     style Composite fill:#a5d6a7
 ```
 
+## Chaos Context and Providers
+
+- `ChaosContext` is attached to the execution context by the executor and aggregates capabilities from active injectors.
+- User code accesses chaos via helpers: `MaybeDelay`, `MaybePanic`, `MaybeError`, `MaybeNetworkChaos`, `MaybeCancelContext`, and `ApplyChaos`.
+- Injectors implement capability interfaces (`ChaosDelayProvider`, `ChaosErrorProvider`, `ChaosPanicProvider`, `ChaosNetworkProvider`, `ChaosContextCancellationProvider`) to feed the chaos context.
+- Generic providers implement `ChaosProvider` and can be triggered on demand with `ApplyChaos(ctx, providerName)`.
+- Event recording helpers (`RecordPanic`, `RecordRecursionDepth`, `RecordError`) feed validator-aware instrumentation through the shared context.
+
+## Verdict Engine and Success Thresholds
+
+- The `Reporter` collects execution results and generates human-readable and JSON reports.
+- `SuccessThresholds` define quality gates: minimum success rate, critical and warning validators, allowed failures, and average duration limits.
+- `ValidationSeverity` classifies validator outcomes into critical, warning, or informational buckets for CI/CD pipelines.
+- The verdict engine (`Reporter.GetVerdict`) evaluates executions against thresholds and returns a `Report` plus `Verdict` (`PASS`, `UNSTABLE`, `FAIL`) together with exit codes suitable for automation.
+- Detailed analysis aggregates failures per validator, error type, and top error patterns to highlight recurring issues.
+
+## Metrics and Exporters
+
+- `MetricsCollector` tracks aggregate execution statistics and injector metrics during runtime.
+- Prometheus integration (`exporters.PrometheusExporter`) exposes execution metrics, validator health, and injector state as scrapeable gauges, counters, and histograms.
+- The HTTP adapter (`exporters.PrometheusExporter.Handler`) provides a ready-to-use `/metrics` endpoint for embedding into existing services.
+- Metrics are recorded automatically by the executor; injectors can contribute additional counters by implementing `MetricsProvider`.
+
+## Testing Integration
+
+- The `chaoskit/testing` package provides `RunChaos` and `RunChaosSimple` helpers that integrate with `testing.T`.
+- Options (`WithRepeat`, `WithFailurePolicy`, `WithExecutorOptions`, `WithDefaultThresholds`, `WithStrictThresholds`, `WithRelaxedThresholds`, `WithoutReport`, `WithoutVerdict`) allow tailoring execution for unit, integration, or soak tests.
+- Verdict-aware runs emit structured reports on failure and fail the enclosing test when thresholds are violated.
+- Reports can be printed to stdout/stderr or exported for further processing in CI environments.
+
 ## Extension Points
 
 ### Creating Custom Injectors
@@ -319,6 +430,20 @@ graph LR
     style Optional fill:#a5d6a7
 ```
 
+### Registering Chaos Providers
+
+```mermaid
+graph LR
+    Provider[Custom ChaosProvider] --> Implement[Implement ChaosProvider]
+    Implement --> Apply[Apply(ctx) bool]
+    Provider --> Register[Register with ChaosContext]
+    Register --> Use[Invoke via ApplyChaos(ctx, name)]
+
+    style Provider fill:#fff9c4
+    style Implement fill:#fff4e1
+    style Register fill:#e1f5ff
+```
+
 ## Data Flow
 
 ```mermaid
@@ -331,27 +456,42 @@ graph TB
     UserCode --> MaybeDelay[MaybeDelay]
     UserCode --> MaybePanic[MaybePanic]
     UserCode --> MaybeNetworkChaos[MaybeNetworkChaos]
+    UserCode --> MaybeError[MaybeError]
+    UserCode --> MaybeCancel[MaybeCancelContext]
+    UserCode --> ApplyChaos[ApplyChaos]
     UserCode --> RecordEvents[Record Events]
     
     MaybeDelay --> DelayProvider[DelayProvider]
     MaybePanic --> PanicProvider[PanicProvider]
     MaybeNetworkChaos --> NetworkProvider[NetworkProvider]
+    MaybeError --> ErrorProvider[ErrorProvider]
+    MaybeCancel --> CancellationProvider[CancellationProvider]
+    ApplyChaos --> RegisteredProvider[ChaosProvider]
     RecordEvents --> EventRecorder[EventRecorder]
     
     EventRecorder --> Validators[Validators]
     DelayProvider --> Injector[Injector]
     PanicProvider --> Injector
     NetworkProvider --> Injector
+    ErrorProvider --> Injector
+    CancellationProvider --> Injector
+    RegisteredProvider --> Injector
     
     Validators --> Result[Validation Result]
     Injector --> Metrics[Metrics]
     Result --> Metrics
     Metrics --> Reporter[Reporter]
+    Reporter --> VerdictEngine[Verdict Engine]
+    VerdictEngine --> Thresholds[SuccessThresholds]
+    VerdictEngine --> Reports
+    Metrics --> Exporters[Prometheus / HTTP]
     
     style UserCode fill:#c8e6c9
     style EventRecorder fill:#fff9c4
     style Validators fill:#e8f5e9
     style Metrics fill:#f3e5f5
+    style VerdictEngine fill:#ffe0b2
+    style Exporters fill:#d1c4e9
 ```
 
 ## Thread Safety Model
@@ -448,6 +588,33 @@ graph TB
 - More components to manage
 - Potential duplication (mitigated by shared interfaces)
 
+### 6. Severity-Aware Validation and Verdicts
+
+**Decision**: Classify validator failures by severity and evaluate scenarios against configurable thresholds.
+
+**Rationale**:
+- CI/CD-friendly: Enables pass/unstable/fail outcomes with exit codes
+- Transparency: Detailed reports highlight offending validators and trends
+- Flexibility: Teams can adjust thresholds per environment (strict vs relaxed)
+- Automation: Supports gating deployments on resilience metrics
+
+**Trade-offs**:
+- Requires threshold configuration
+- More complex reporter implementation
+
+### 7. Built-in Metrics and Exporters
+
+**Decision**: Capture runtime metrics and expose them via Prometheus exporter.
+
+**Rationale**:
+- Observability: Surface execution, validator, and injector health externally
+- Integration: Compatible with existing monitoring stacks
+- Diagnostics: Simplifies long-running experiment analysis
+
+**Trade-offs**:
+- Additional dependency on monitoring infrastructure for full value
+- Slight overhead from metrics bookkeeping
+
 ## Performance Considerations
 
 1. **Lock Granularity**: Fine-grained locks to minimize contention
@@ -466,5 +633,5 @@ graph TB
 ---
 
 **Last Updated**: November 2025  
-**Version**: 1.0
+**Version**: 1.1
 

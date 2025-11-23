@@ -21,9 +21,11 @@ Most chaos tools operate at the infrastructure level (containers, nodes, network
 
 * **Code-level fault injection** (panic, delay, error, resource faults)
 * **Context-based activation** (no-op unless chaos context is attached)
-* **Scenario DSL** (define steps, injectors, validators)
-* **Built-in validators** (goroutine limits, recursion depth, infinite loop detection)
-* **Long-running chaos tests** (minutes to days)
+* **Scenario DSL** (define steps, injectors, validators, scopes)
+* **Severity-aware validators** feeding a verdict engine
+* **Built-in reporters & success thresholds** for PASS/UNSTABLE/FAIL outcomes
+* **Metrics collector & Prometheus exporter** for observability
+* **Go `testing` integration helpers** with configurable thresholds
 * **Integration with ToxiProxy** for network chaos
 * **Optional monkey-patching** for advanced cases
 * **Fully opt-in via build tags** (`-tags=chaos`)
@@ -92,6 +94,22 @@ Without this context, calls like:
 ```go
 chaoskit.MaybePanic(ctx)
 chaoskit.MaybeDelay(ctx)
+if err := chaoskit.MaybeError(ctx); err != nil {
+    return err
+}
+child, cancel := chaoskit.MaybeCancelContext(ctx)
+defer cancel()
+
+if chaoskit.ApplyChaos(child, "force-retry") {
+    // Provider-specific logic
+}
+```
+
+and event hooks such as
+
+```go
+chaoskit.RecordRecursionDepth(ctx, depth)
+chaoskit.RecordError(ctx)
 ```
 
 are strictly **no-op**.
@@ -136,14 +154,44 @@ ChaosKit supports:
 * `GoroutineLimit(n)`
 * `RecursionDepthLimit(n)`
 * `NoInfiniteLoop(timeout)`
-* `MemoryLimit(bytes)`
+* `NoSlowIteration(timeout)`
+* `MemoryUnderLimit(bytes)`
+* `MaxErrors(limit)`
 * custom validators via:
 
 ```go
 type Validator interface {
-    Validate(target Target) error
+    Name() string
+    Validate(ctx context.Context, target Target) error
+    Severity() chaoskit.ValidationSeverity
 }
 ```
+
+---
+
+## Verdicts & Reports
+
+* `Reporter().GetVerdict(thresholds)` evaluates executions against `SuccessThresholds`.
+* Verdicts are `PASS`, `UNSTABLE`, or `FAIL` with matching exit codes.
+* Reports include categorized failures, top error patterns, and JSON/text outputs.
+* Threshold helpers: `DefaultThresholds`, `StrictThresholds`, `RelaxedThresholds`.
+
+---
+
+## Metrics & Exporters
+
+* `MetricsCollector` tracks executions, success rates, and injector metrics.
+* `exporters.PrometheusExporter` exposes `/metrics` compatible with Prometheus.
+* HTTP helper: `prom.Handler()` to plug into `net/http`.
+* Collect metrics after each run via `executor.Reporter().Results()` and `executor.Metrics().Stats()`.
+
+---
+
+## Go Testing Integration
+
+* `chaoskit/testing.RunChaos` integrates scenarios with `testing.T`.
+* Options: `WithRepeat`, `WithFailurePolicy`, `WithThresholds`, `WithoutReport`, `WithReportToStderr`, etc.
+* `RunChaosSimple` accepts plain slices of steps, injectors, and validators for lightweight tests.
 
 ---
 

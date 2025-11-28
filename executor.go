@@ -553,6 +553,7 @@ func (e *Executor) buildChaosContext(ctx context.Context, injectors []Injector) 
 					GetLogger(ctx).Debug("network connection drop simulated",
 						slog.String("host", host),
 						slog.Int("port", port))
+					// TODO: implement connection drop
 
 					return true
 				}
